@@ -38,9 +38,9 @@ class AppStrings {
   static const String institutions = 'Administrations / Ministères / Sociétés';
   
   // Challenges
-  static const String challenges = 'Défis';
-  static const String activeChallenges = 'Défis actifs';
-  static const String completedChallenges = 'Défis terminés';
+  static const String challenges = 'Podothons';
+  static const String activeChallenges = 'Podothons actifs';
+  static const String completedChallenges = 'Podothons terminés';
   static const String joinChallenge = 'Rejoindre le défi';
   
   // Podothons

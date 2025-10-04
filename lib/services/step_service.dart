@@ -109,10 +109,26 @@ class StepService {
     }
   }
 
+  /// Récupère tous les enregistrements de pas d'un utilisateur
+  Future<List<StepRecordModel>> getAllStepRecords(String userId) async {
+    try {
+      final snapshot = await _firestore
+          .collection(_collection)
+          .where('userId', isEqualTo: userId)
+          .orderBy('date', descending: false)
+          .get();
+
+      return snapshot.docs
+          .map((doc) => StepRecordModel.fromJson(doc.data()))
+          .toList();
+    } catch (e) {
+      throw Exception('Erreur lors de la récupération de tous les enregistrements: $e');
+    }
+  }
+
   /// Récupère les pas de la semaine en cours
   Future<List<StepRecordModel>> getWeekSteps(String userId) async {
     final now = DateTime.now();
-    final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
     return getStepsHistory(userId, now.weekday);
   }
 

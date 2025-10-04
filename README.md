@@ -92,15 +92,15 @@ lib/
 ### Configuration
 
 1. **Cloner le projet**
-   ```bash
+```bash
    git clone https://github.com/Frejustedev/DIZONLI.git
    cd DIZONLI
-   ```
+```
 
 2. **Installer les dépendances**
-   ```bash
-   flutter pub get
-   ```
+```bash
+flutter pub get
+```
 
 3. **Configuration Firebase**
    - Créer un projet Firebase sur https://console.firebase.google.com
@@ -122,9 +122,9 @@ lib/
    - Appliquer dans la console Firebase
 
 6. **Lancer l'application**
-   ```bash
-   flutter run
-   ```
+```bash
+flutter run
+```
 
 ## 🔒 Sécurité
 

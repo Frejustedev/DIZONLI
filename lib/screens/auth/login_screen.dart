@@ -66,26 +66,54 @@ class _LoginScreenState extends State<LoginScreen> {
               children: [
                 const SizedBox(height: 40),
                 // Logo
-                Container(
-                  height: 120,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.directions_walk,
-                    size: 60,
-                    color: AppColors.primary,
+                Center(
+                  child: Container(
+                    width: 150,
+                    height: 150,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(30),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withOpacity(0.3),
+                          spreadRadius: 3,
+                          blurRadius: 15,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(30),
+                      child: Image.asset(
+                        'assets/icon/app_icon.png',
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            child: const Icon(
+                              Icons.directions_walk,
+                              size: 80,
+                              color: AppColors.primary,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 24),
                 // App Name
-                Text(
-                  AppStrings.appName,
-                  style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.bold,
-                      ),
+                const Text(
+                  'DIZONLI',
+                  style: TextStyle(
+                    fontSize: 36,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                    letterSpacing: 3,
+                  ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),

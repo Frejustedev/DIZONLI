@@ -12,6 +12,7 @@ import 'providers/badge_provider.dart';
 import 'providers/social_provider.dart';
 import 'providers/notification_provider.dart';
 import 'providers/analytics_provider.dart';
+import 'screens/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -98,8 +99,9 @@ class DizonliApp extends StatelessWidget {
             ),
           ),
         ),
-        initialRoute: AppRoutes.login,
+        initialRoute: '/',
         routes: AppRoutes.getRoutes(),
+        home: const SplashScreen(),
       ),
     );
   }

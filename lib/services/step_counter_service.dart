@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:pedometer/pedometer.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -30,9 +31,19 @@ class StepCounterService {
 
   // Request permission
   Future<void> _requestPermission() async {
-    final status = await Permission.activityRecognition.request();
-    if (status.isDenied) {
-      print('Activity recognition permission denied');
+    // Skip permission request on web platform (not supported)
+    if (kIsWeb) {
+      print('Activity recognition permission not available on web');
+      return;
+    }
+    
+    try {
+      final status = await Permission.activityRecognition.request();
+      if (status.isDenied) {
+        print('Activity recognition permission denied');
+      }
+    } catch (e) {
+      print('Error requesting activity recognition permission: $e');
     }
   }
 

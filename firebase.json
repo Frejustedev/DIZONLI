@@ -1,1 +1,24 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"dizonli","appId":"1:44692993905:android:c0b00563815b0f7abc28d0","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"dizonli","configurations":{"web":"1:44692993905:web:8b8a8496b6a8f9fdbc28d0"}}}}}}
+{
+  "firestore": {
+    "indexes": "firestore.indexes.json"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "dizonli",
+          "appId": "1:44692993905:android:c0b00563815b0f7abc28d0",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "dizonli",
+          "configurations": {
+            "web": "1:44692993905:web:8b8a8496b6a8f9fdbc28d0"
+          }
+        }
+      }
+    }
+  }
+}

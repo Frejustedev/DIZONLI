@@ -1,10 +1,18 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:ui' as ui;
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
+import 'dart:html' as html;
 import '../core/constants/app_colors.dart';
 import '../models/post_model.dart';
 
 /// Widget pour afficher un post
-class PostCard extends StatelessWidget {
+class PostCard extends StatefulWidget {
   final PostModel post;
   final String currentUserId;
   final Function(String postId, String userId)? onLike;
@@ -21,11 +29,20 @@ class PostCard extends StatelessWidget {
   }) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
-    final isLiked = post.isLikedBy(currentUserId);
-    final canDelete = post.userId == currentUserId;
+  State<PostCard> createState() => _PostCardState();
+}
 
-    return Card(
+class _PostCardState extends State<PostCard> {
+  final GlobalKey _shareKey = GlobalKey();
+
+  @override
+  Widget build(BuildContext context) {
+    final isLiked = widget.post.isLikedBy(widget.currentUserId);
+    final canDelete = widget.post.userId == widget.currentUserId;
+
+    return RepaintBoundary(
+      key: _shareKey,
+      child: Card(
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 2,
       shape: RoundedRectangleBorder(
@@ -42,12 +59,12 @@ class PostCard extends StatelessWidget {
                 CircleAvatar(
                   radius: 20,
                   backgroundColor: AppColors.primaryLight,
-                  backgroundImage: post.userPhotoURL != null && post.userPhotoURL!.isNotEmpty
-                      ? NetworkImage(post.userPhotoURL!)
+                  backgroundImage: widget.post.userPhotoURL != null && widget.post.userPhotoURL!.isNotEmpty
+                      ? NetworkImage(widget.post.userPhotoURL!)
                       : null,
-                  child: post.userPhotoURL == null || post.userPhotoURL!.isEmpty
+                  child: widget.post.userPhotoURL == null || widget.post.userPhotoURL!.isEmpty
                       ? Text(
-                          post.userName[0].toUpperCase(),
+                          widget.post.userName[0].toUpperCase(),
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
@@ -61,7 +78,7 @@ class PostCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        post.userName,
+                        widget.post.userName,
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -72,7 +89,7 @@ class PostCard extends StatelessWidget {
                       Row(
                         children: [
                           Text(
-                            _formatTimestamp(post.createdAt),
+                            _formatTimestamp(widget.post.createdAt),
                             style: const TextStyle(
                               fontSize: 12,
                               color: AppColors.textSecondary,
@@ -99,7 +116,7 @@ class PostCard extends StatelessWidget {
 
             // Content
             Text(
-              post.content,
+              widget.post.content,
               style: const TextStyle(
                 fontSize: 15,
                 color: AppColors.textPrimary,
@@ -108,12 +125,12 @@ class PostCard extends StatelessWidget {
             ),
 
             // Image if available
-            if (post.imageUrl != null && post.imageUrl!.isNotEmpty) ...[
+            if (widget.post.imageUrl != null && widget.post.imageUrl!.isNotEmpty) ...[
               const SizedBox(height: 12),
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: Image.network(
-                  post.imageUrl!,
+                  widget.post.imageUrl!,
                   width: double.infinity,
                   fit: BoxFit.cover,
                 ),
@@ -126,7 +143,7 @@ class PostCard extends StatelessWidget {
             Row(
               children: [
                 Text(
-                  '${post.likeCount} j\'aime',
+                  '${widget.post.likeCount} j\'aime',
                   style: const TextStyle(
                     fontSize: 13,
                     color: AppColors.textSecondary,
@@ -134,7 +151,7 @@ class PostCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 16),
                 Text(
-                  '${post.commentCount} commentaire${post.commentCount > 1 ? 's' : ''}',
+                  '${widget.post.commentCount} commentaire${widget.post.commentCount > 1 ? 's' : ''}',
                   style: const TextStyle(
                     fontSize: 13,
                     color: AppColors.textSecondary,
@@ -153,30 +170,372 @@ class PostCard extends StatelessWidget {
                   icon: isLiked ? Icons.favorite : Icons.favorite_border,
                   label: 'J\'aime',
                   color: isLiked ? AppColors.error : AppColors.textSecondary,
-                  onTap: () => onLike?.call(post.id, currentUserId),
+                  onTap: () => widget.onLike?.call(widget.post.id, widget.currentUserId),
                 ),
                 _buildActionButton(
                   icon: Icons.comment_outlined,
                   label: 'Commenter',
                   color: AppColors.textSecondary,
-                  onTap: () => onComment?.call(post.id),
+                  onTap: () => widget.onComment?.call(widget.post.id),
+                ),
+                _buildActionButton(
+                  icon: Icons.share_outlined,
+                  label: 'Partager',
+                  color: AppColors.textSecondary,
+                  onTap: _sharePost,
                 ),
               ],
             ),
 
             // Comments preview
-            if (post.comments.isNotEmpty) ...[
+            if (widget.post.comments.isNotEmpty) ...[
               const Divider(height: 24),
-              ...post.comments.take(2).map((comment) => _buildCommentPreview(comment)),
-              if (post.comments.length > 2)
+              ...widget.post.comments.take(2).map((comment) => _buildCommentPreview(comment)),
+              if (widget.post.comments.length > 2)
                 TextButton(
-                  onPressed: () => onComment?.call(post.id),
-                  child: Text('Voir les ${post.comments.length} commentaires'),
+                  onPressed: () => widget.onComment?.call(widget.post.id),
+                  child: Text('Voir les ${widget.post.comments.length} commentaires'),
                 ),
             ],
           ],
         ),
       ),
+    ),
+    );
+  }
+
+  // Méthode pour partager le post en image avec branding DIZONLI
+  Future<void> _sharePost() async {
+    try {
+      // Afficher un indicateur de chargement
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
+      // Créer une image personnalisée avec le logo et le slogan
+      final image = await _createShareImage();
+      
+      if (!mounted) return;
+      Navigator.pop(context); // Fermer l'indicateur de chargement
+
+      if (kIsWeb) {
+        // Sur le web, télécharger l'image directement
+        _downloadImageWeb(image);
+        
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Image téléchargée ! Vous pouvez maintenant la partager sur vos réseaux sociaux 🎉'),
+            backgroundColor: AppColors.primary,
+            duration: Duration(seconds: 4),
+          ),
+        );
+      } else {
+        // Sur mobile, utiliser le partage natif
+        final directory = await getTemporaryDirectory();
+        final imagePath = '${directory.path}/dizonli_post_${widget.post.id}.png';
+        final imageFile = File(imagePath);
+        await imageFile.writeAsBytes(image);
+
+        await Share.shareXFiles(
+          [XFile(imagePath)],
+          text: '🏃 Découvrez mon activité sur DIZONLI\nMarchons ensemble vers une meilleure santé ! 💪\n\n#DIZONLI #MarcheTonChemin',
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop(); // Fermer le dialog si erreur
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur lors du partage: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
+
+  // Télécharger l'image sur le web
+  void _downloadImageWeb(Uint8List imageBytes) {
+    final blob = html.Blob([imageBytes]);
+    final url = html.Url.createObjectUrlFromBlob(blob);
+    final anchor = html.AnchorElement(href: url)
+      ..setAttribute('download', 'DIZONLI_post_${widget.post.id}.png')
+      ..click();
+    html.Url.revokeObjectUrl(url);
+  }
+
+  // Créer une image personnalisée pour le partage
+  Future<Uint8List> _createShareImage() async {
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    const size = Size(1080, 1920); // Format vertical pour les réseaux sociaux
+
+    // Fond avec gradient
+    final gradient = LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: [
+        AppColors.primary.withOpacity(0.1),
+        Colors.white,
+        AppColors.primary.withOpacity(0.05),
+      ],
+    );
+    final paint = Paint()..shader = gradient.createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), paint);
+
+    // En-tête avec logo et slogan
+    _drawHeader(canvas, size);
+
+    // Contenu du post
+    await _drawPostContent(canvas, size);
+
+    // Pied de page avec marque
+    _drawFooter(canvas, size);
+
+    // Convertir en image
+    final picture = recorder.endRecording();
+    final img = await picture.toImage(size.width.toInt(), size.height.toInt());
+    final byteData = await img.toByteData(format: ui.ImageByteFormat.png);
+    return byteData!.buffer.asUint8List();
+  }
+
+  void _drawHeader(Canvas canvas, Size size) {
+    const headerHeight = 200.0;
+    
+    // Fond de l'en-tête
+    final headerPaint = Paint()..color = AppColors.primary;
+    canvas.drawRect(
+      Rect.fromLTWH(0, 0, size.width, headerHeight),
+      headerPaint,
+    );
+
+    // Logo (simulé avec un cercle et icône)
+    final logoPaint = Paint()..color = Colors.white;
+    const logoRadius = 50.0;
+    canvas.drawCircle(
+      Offset(size.width / 2, 80),
+      logoRadius,
+      logoPaint,
+    );
+
+    // Icône dans le cercle
+    final iconPaint = Paint()
+      ..color = AppColors.primary
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 8;
+    canvas.drawCircle(Offset(size.width / 2, 80), logoRadius * 0.6, iconPaint);
+
+    // Texte DIZONLI
+    final textPainter = TextPainter(
+      text: const TextSpan(
+        text: 'DIZONLI',
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 48,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 4,
+        ),
+      ),
+      textDirection: ui.TextDirection.ltr,
+    );
+    textPainter.layout();
+    textPainter.paint(canvas, Offset((size.width - textPainter.width) / 2, 145));
+
+    // Slogan
+    final sloganPainter = TextPainter(
+      text: const TextSpan(
+        text: 'Marchons ensemble vers une meilleure santé',
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 18,
+          fontStyle: FontStyle.italic,
+        ),
+      ),
+      textDirection: ui.TextDirection.ltr,
+      textAlign: TextAlign.center,
+    );
+    sloganPainter.layout(maxWidth: size.width - 100);
+    sloganPainter.paint(canvas, Offset((size.width - sloganPainter.width) / 2, 145 + textPainter.height + 5));
+  }
+
+  Future<void> _drawPostContent(Canvas canvas, Size size) async {
+    const startY = 240.0;
+    const padding = 50.0;
+
+    // Carte du post
+    final cardPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+    final cardShadow = Paint()
+      ..color = Colors.black.withOpacity(0.1)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
+
+    final cardRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(padding - 5, startY - 5, size.width - 2 * padding + 10, 800),
+      const Radius.circular(20),
+    );
+    canvas.drawRRect(cardRect, cardShadow);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(padding, startY, size.width - 2 * padding, 800),
+        const Radius.circular(20),
+      ),
+      cardPaint,
+    );
+
+    double currentY = startY + 40;
+
+    // Avatar et nom
+    final avatarPaint = Paint()..color = AppColors.primaryLight;
+    canvas.drawCircle(Offset(padding + 40, currentY), 30, avatarPaint);
+
+    // Initiale
+    final initialPainter = TextPainter(
+      text: TextSpan(
+        text: widget.post.userName[0].toUpperCase(),
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      textDirection: ui.TextDirection.ltr,
+    );
+    initialPainter.layout();
+    initialPainter.paint(
+      canvas,
+      Offset(padding + 40 - initialPainter.width / 2, currentY - initialPainter.height / 2),
+    );
+
+    // Nom d'utilisateur
+    final namePainter = TextPainter(
+      text: TextSpan(
+        text: widget.post.userName,
+        style: const TextStyle(
+          color: AppColors.textPrimary,
+          fontSize: 28,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      textDirection: ui.TextDirection.ltr,
+    );
+    namePainter.layout();
+    namePainter.paint(canvas, Offset(padding + 90, currentY - 15));
+
+    // Date
+    final datePainter = TextPainter(
+      text: TextSpan(
+        text: _formatTimestamp(widget.post.createdAt),
+        style: const TextStyle(
+          color: AppColors.textSecondary,
+          fontSize: 20,
+        ),
+      ),
+      textDirection: ui.TextDirection.ltr,
+    );
+    datePainter.layout();
+    datePainter.paint(canvas, Offset(padding + 90, currentY + 15));
+
+    currentY += 80;
+
+    // Contenu du post
+    final contentPainter = TextPainter(
+      text: TextSpan(
+        text: widget.post.content,
+        style: const TextStyle(
+          color: AppColors.textPrimary,
+          fontSize: 26,
+          height: 1.5,
+        ),
+      ),
+      textDirection: ui.TextDirection.ltr,
+      textAlign: TextAlign.left,
+    );
+    contentPainter.layout(maxWidth: size.width - 2 * padding - 40);
+    contentPainter.paint(canvas, Offset(padding + 20, currentY));
+
+    currentY += contentPainter.height + 60;
+
+    // Stats (j'aime et commentaires)
+    final statsPainter = TextPainter(
+      text: TextSpan(
+        children: [
+          TextSpan(
+            text: '❤️ ${widget.post.likeCount}',
+            style: const TextStyle(
+              color: AppColors.error,
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const TextSpan(text: '     '),
+          TextSpan(
+            text: '💬 ${widget.post.commentCount}',
+            style: const TextStyle(
+              color: AppColors.primary,
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+      textDirection: ui.TextDirection.ltr,
+    );
+    statsPainter.layout();
+    statsPainter.paint(canvas, Offset(padding + 20, currentY));
+  }
+
+  void _drawFooter(Canvas canvas, Size size) {
+    const footerY = 1700.0;
+
+    // Ligne de séparation
+    final linePaint = Paint()
+      ..color = AppColors.primary.withOpacity(0.3)
+      ..strokeWidth = 2;
+    canvas.drawLine(
+      Offset(100, footerY),
+      Offset(size.width - 100, footerY),
+      linePaint,
+    );
+
+    // Texte du pied de page
+    final footerPainter = TextPainter(
+      text: const TextSpan(
+        text: '🏃 Rejoignez-nous sur DIZONLI 💪',
+        style: TextStyle(
+          color: AppColors.primary,
+          fontSize: 28,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      textDirection: ui.TextDirection.ltr,
+      textAlign: TextAlign.center,
+    );
+    footerPainter.layout();
+    footerPainter.paint(
+      canvas,
+      Offset((size.width - footerPainter.width) / 2, footerY + 30),
+    );
+
+    // Hashtag
+    final hashtagPainter = TextPainter(
+      text: const TextSpan(
+        text: '#MarcheTonChemin',
+        style: TextStyle(
+          color: AppColors.secondary,
+          fontSize: 24,
+          fontStyle: FontStyle.italic,
+        ),
+      ),
+      textDirection: ui.TextDirection.ltr,
+      textAlign: TextAlign.center,
+    );
+    hashtagPainter.layout();
+    hashtagPainter.paint(
+      canvas,
+      Offset((size.width - hashtagPainter.width) / 2, footerY + 80),
     );
   }
 
@@ -185,7 +544,7 @@ class PostCard extends StatelessWidget {
     String label;
     Color color;
 
-    switch (post.type) {
+    switch (widget.post.type) {
       case PostType.achievement:
         icon = Icons.emoji_events;
         label = 'Exploit';
@@ -198,7 +557,7 @@ class PostCard extends StatelessWidget {
         break;
       case PostType.challenge:
         icon = Icons.flag;
-        label = 'Défi';
+        label = 'Podothon';
         color = AppColors.secondary;
         break;
       case PostType.custom:
@@ -321,7 +680,7 @@ class PostCard extends StatelessWidget {
               title: const Text('Supprimer'),
               onTap: () {
                 Navigator.pop(context);
-                onDelete?.call(post.id, currentUserId);
+                widget.onDelete?.call(widget.post.id, widget.currentUserId);
               },
             ),
           ],

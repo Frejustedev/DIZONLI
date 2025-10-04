@@ -8,6 +8,7 @@ import 'groups/groups_screen.dart';
 import 'challenges/challenges_screen.dart';
 import 'social/social_feed_screen.dart';
 import 'badges/badges_screen.dart';
+import 'statistics/statistics_screen.dart';
 import 'profile/profile_screen.dart';
 import 'notifications/notifications_screen.dart';
 
@@ -27,6 +28,7 @@ class _MainScreenState extends State<MainScreen> {
     const ChallengesScreen(),
     const SocialFeedScreen(),
     const BadgesScreen(),
+    const StatisticsScreen(),
     const ProfileScreen(),
   ];
 
@@ -43,7 +45,59 @@ class _MainScreenState extends State<MainScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_getTitle()),
+        title: Row(
+          children: [
+            // Logo de l'application
+            Container(
+              width: 35,
+              height: 35,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                color: Colors.white,
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.asset(
+                  'assets/icon/app_icon.png',
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return const Icon(
+                      Icons.directions_run,
+                      color: AppColors.primary,
+                      size: 20,
+                    );
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            // Nom de l'application et section
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'DIZONLI',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+                  Text(
+                    _getTitle(),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.normal,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         actions: [
@@ -126,7 +180,7 @@ class _MainScreenState extends State<MainScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.emoji_events_outlined),
             activeIcon: Icon(Icons.emoji_events),
-            label: 'Défis',
+            label: 'Podothons',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.feed_outlined),
@@ -137,6 +191,11 @@ class _MainScreenState extends State<MainScreen> {
             icon: Icon(Icons.military_tech_outlined),
             activeIcon: Icon(Icons.military_tech),
             label: 'Badges',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.bar_chart),
+            activeIcon: Icon(Icons.bar_chart),
+            label: 'Stats',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person_outline),
@@ -155,12 +214,14 @@ class _MainScreenState extends State<MainScreen> {
       case 1:
         return 'Groupes';
       case 2:
-        return 'Défis';
+        return 'Podothons';
       case 3:
         return 'Social';
       case 4:
         return 'Badges';
       case 5:
+        return 'Statistiques';
+      case 6:
         return 'Profil';
       default:
         return 'DIZONLI';
