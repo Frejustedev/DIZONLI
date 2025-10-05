@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     
-    <!-- Permissions -->
+    <!-- Permissions de base -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION"/>
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
@@ -8,6 +8,16 @@
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+    
+    <!-- Permissions Health Connect / Google Fit (Android 14+) -->
+    <uses-permission android:name="android.permission.health.READ_STEPS"/>
+    <uses-permission android:name="android.permission.health.WRITE_STEPS"/>
+    <uses-permission android:name="android.permission.health.READ_DISTANCE"/>
+    <uses-permission android:name="android.permission.health.READ_ACTIVE_CALORIES_BURNED"/>
+    
+    <!-- Permission pour service en arrière-plan -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
     
     <application
         android:label="DIZONLI"

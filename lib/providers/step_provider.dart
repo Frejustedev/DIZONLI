@@ -2,18 +2,24 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../services/step_counter_service.dart';
 import '../services/step_service.dart';
+import '../services/background_step_sync_service.dart';
 
 class StepProvider with ChangeNotifier {
   final StepCounterService _stepService = StepCounterService();
   final StepService _firestoreStepService = StepService();
+  final BackgroundStepSyncService _backgroundSync = BackgroundStepSyncService();
+  
   int _steps = 0;
   bool _isInitialized = false;
   String? _currentUserId;
   Timer? _saveTimer;
+  Timer? _systemStepsRefreshTimer;
   int _lastSavedSteps = 0;
+  bool _useSystemSteps = false; // Utiliser Google Fit / Health Connect
 
   int get steps => _steps;
   bool get isInitialized => _isInitialized;
+  bool get usingSystemSteps => _useSystemSteps;
   
   double get distance => _stepService.getDistanceInKm();
   int get calories => _stepService.getCalories();
@@ -25,19 +31,52 @@ class StepProvider with ChangeNotifier {
     if (_isInitialized && userId == _currentUserId) return;
     
     _currentUserId = userId;
-    await _stepService.initialize();
-    _isInitialized = true;
+    
+    // Essayer d'utiliser le système (Google Fit / Health Connect) en priorité
+    if (_currentUserId != null && !kIsWeb) {
+      try {
+        await _backgroundSync.startPeriodicSync(_currentUserId!);
+        _useSystemSteps = true;
+        debugPrint('✅ Utilisation de Google Fit / Health Connect');
+        
+        // Rafraîchir les pas du système toutes les 5 minutes
+        _startSystemStepsRefresh();
+      } catch (e) {
+        debugPrint('⚠️ Impossible d\'utiliser le système, fallback sur capteur: $e');
+        _useSystemSteps = false;
+      }
+    }
+    
+    // Fallback: utiliser le capteur local si le système n'est pas disponible
+    if (!_useSystemSteps) {
+      await _stepService.initialize();
+      _startListening();
+      _startAutoSave();
+    }
     
     // Charger les pas du jour depuis Firestore
     if (_currentUserId != null) {
       await _loadTodayStepsFromFirestore();
     }
     
-    // Start listening to step updates
-    _startListening();
-    
-    // Start auto-save timer (save every 2 minutes)
-    _startAutoSave();
+    _isInitialized = true;
+  }
+  
+  // Rafraîchir les pas du système périodiquement
+  void _startSystemStepsRefresh() {
+    _systemStepsRefreshTimer = Timer.periodic(
+      const Duration(minutes: 5),
+      (timer) async {
+        if (_useSystemSteps) {
+          final systemSteps = await _backgroundSync.getTodaySteps();
+          if (systemSteps > 0 && systemSteps != _steps) {
+            _steps = systemSteps;
+            notifyListeners();
+            debugPrint('🔄 Pas mis à jour depuis le système: $systemSteps');
+          }
+        }
+      },
+    );
   }
 
   // Charger les pas du jour depuis Firestore
@@ -111,7 +150,30 @@ class StepProvider with ChangeNotifier {
   // Forcer la sauvegarde (appelé manuellement si nécessaire)
   Future<void> forceSave() async {
     if (_currentUserId != null) {
-      await _saveStepsToFirestore();
+      if (_useSystemSteps) {
+        await _backgroundSync.forceSyncNow();
+      } else {
+        await _saveStepsToFirestore();
+      }
+    }
+  }
+  
+  // Synchroniser l'historique depuis le système
+  Future<void> syncHistoricalData(int days) async {
+    if (_currentUserId != null && _useSystemSteps) {
+      await _backgroundSync.syncHistory(days);
+      notifyListeners();
+    }
+  }
+  
+  // Obtenir les pas actuels depuis le système
+  Future<void> refreshFromSystem() async {
+    if (_useSystemSteps) {
+      final systemSteps = await _backgroundSync.getTodaySteps();
+      if (systemSteps >= 0) {
+        _steps = systemSteps;
+        notifyListeners();
+      }
     }
   }
 
@@ -126,6 +188,10 @@ class StepProvider with ChangeNotifier {
   @override
   void dispose() {
     _saveTimer?.cancel();
+    _systemStepsRefreshTimer?.cancel();
+    if (_useSystemSteps) {
+      _backgroundSync.stopPeriodicSync();
+    }
     _isInitialized = false;
     super.dispose();
   }

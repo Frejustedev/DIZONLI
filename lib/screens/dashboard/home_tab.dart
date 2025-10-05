@@ -10,7 +10,7 @@ import '../../widgets/weekly_chart.dart';
 import '../../widgets/badge_unlock_dialog.dart';
 
 class HomeTab extends StatefulWidget {
-  const HomeTab({Key? key}) : super(key: key);
+  const HomeTab({super.key});
 
   @override
   State<HomeTab> createState() => _HomeTabState();
@@ -82,6 +82,7 @@ class _HomeTabState extends State<HomeTab> {
       onRefresh: () async {
         await stepProvider.initialize(userId: user.id);
         await stepProvider.forceSave(); // Forcer la sauvegarde lors du refresh
+        await stepProvider.refreshFromSystem(); // Rafraîchir depuis le système
         await _checkBadges();
       },
       child: SingleChildScrollView(
