@@ -6,7 +6,7 @@ import '../../services/auth_service.dart';
 import '../../providers/user_provider.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+  const LoginScreen({super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -44,13 +44,135 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } catch (e) {
       if (mounted) {
+        String errorMessage = 'Erreur de connexion';
+        
+        // Messages d'erreur personnalisés
+        if (e.toString().contains('user-not-found')) {
+          errorMessage = '❌ Aucun compte trouvé avec cet email';
+        } else if (e.toString().contains('wrong-password')) {
+          errorMessage = '❌ Mot de passe incorrect';
+        } else if (e.toString().contains('invalid-email')) {
+          errorMessage = '❌ Email invalide';
+        } else if (e.toString().contains('user-disabled')) {
+          errorMessage = '❌ Ce compte a été désactivé';
+        } else if (e.toString().contains('too-many-requests')) {
+          errorMessage = '❌ Trop de tentatives. Réessayez plus tard';
+        } else if (e.toString().contains('invalid-credential')) {
+          errorMessage = '❌ Email ou mot de passe incorrect';
+        }
+        
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: ${e.toString()}')),
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 4),
+          ),
         );
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _showForgotPasswordDialog() async {
+    final emailController = TextEditingController(text: _emailController.text);
+    
+    return showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.lock_reset, color: AppColors.primary),
+            SizedBox(width: 8),
+            Text('Mot de passe oublié ?'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Entrez votre email et nous vous enverrons un lien pour réinitialiser votre mot de passe.',
+              style: TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: emailController,
+              keyboardType: TextInputType.emailAddress,
+              decoration: InputDecoration(
+                labelText: 'Email',
+                prefixIcon: const Icon(Icons.email),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final email = emailController.text.trim();
+              
+              if (email.isEmpty || !email.contains('@')) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Email invalide')),
+                );
+                return;
+              }
+              
+              Navigator.pop(context);
+              
+              try {
+                await _authService.resetPassword(email);
+                
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Row(
+                        children: [
+                          const Icon(Icons.check_circle, color: Colors.white),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              '✅ Email envoyé à $email\nVérifiez votre boîte de réception',
+                            ),
+                          ),
+                        ],
+                      ),
+                      backgroundColor: AppColors.success,
+                      duration: const Duration(seconds: 5),
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  String errorMsg = 'Erreur lors de l\'envoi de l\'email';
+                  if (e.toString().contains('user-not-found')) {
+                    errorMsg = '❌ Aucun compte trouvé avec cet email';
+                  }
+                  
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(errorMsg),
+                      backgroundColor: AppColors.error,
+                    ),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+            ),
+            child: const Text('Envoyer'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -181,10 +303,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
-                    onPressed: () {
-                      // TODO: Implement forgot password
-                    },
-                    child: Text(AppStrings.forgotPassword),
+                    onPressed: _showForgotPasswordDialog,
+                    child: const Text(AppStrings.forgotPassword),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -208,9 +328,9 @@ class _LoginScreenState extends State<LoginScreen> {
                             valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                           ),
                         )
-                      : Text(
+                      : const Text(
                           AppStrings.signIn,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),
@@ -218,17 +338,17 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 24),
                 // Divider
-                Row(
+                const Row(
                   children: [
-                    const Expanded(child: Divider()),
+                    Expanded(child: Divider()),
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: EdgeInsets.symmetric(horizontal: 16),
                       child: Text(
                         'OU',
                         style: TextStyle(color: AppColors.textSecondary),
                       ),
                     ),
-                    const Expanded(child: Divider()),
+                    Expanded(child: Divider()),
                   ],
                 ),
                 const SizedBox(height: 24),
@@ -236,7 +356,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(
+                    const Text(
                       'Pas encore de compte? ',
                       style: TextStyle(color: AppColors.textSecondary),
                     ),
