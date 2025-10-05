@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 
@@ -7,11 +9,34 @@ class UserProvider with ChangeNotifier {
   UserModel? _currentUser;
   bool _isLoading = false;
   String? _error;
+  StreamSubscription<User?>? _authStateSubscription;
 
   UserModel? get currentUser => _currentUser;
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get isAuthenticated => _currentUser != null;
+
+  UserProvider() {
+    // Écouter les changements d'état d'authentification
+    _listenToAuthStateChanges();
+  }
+
+  // Écouter les changements d'état d'authentification Firebase
+  void _listenToAuthStateChanges() {
+    _authStateSubscription = _authService.authStateChanges.listen((User? user) {
+      if (user == null && _currentUser != null) {
+        // L'utilisateur a été déconnecté
+        _currentUser = null;
+        notifyListeners();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _authStateSubscription?.cancel();
+    super.dispose();
+  }
 
   // Load user data
   Future<void> loadUser(String userId) async {

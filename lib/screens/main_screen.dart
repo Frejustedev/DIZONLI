@@ -21,6 +21,7 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
+  DateTime? _lastBackPressTime;
 
   final List<Widget> _screens = [
     const HomeTab(),
@@ -43,7 +44,33 @@ class _MainScreenState extends State<MainScreen> {
       );
     }
 
-    return Scaffold(
+    return WillPopScope(
+      onWillPop: () async {
+        // Si on n'est pas sur l'écran d'accueil, retourner à l'accueil
+        if (_currentIndex != 0) {
+          setState(() {
+            _currentIndex = 0;
+          });
+          return false;
+        }
+        
+        // Double tap pour quitter l'application
+        final now = DateTime.now();
+        if (_lastBackPressTime == null || 
+            now.difference(_lastBackPressTime!) > const Duration(seconds: 2)) {
+          _lastBackPressTime = now;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Appuyez encore une fois pour quitter'),
+              duration: Duration(seconds: 2),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          return false;
+        }
+        return true;
+      },
+      child: Scaffold(
       appBar: AppBar(
         title: Row(
           children: [
@@ -204,6 +231,7 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ],
       ),
+    ),
     );
   }
 

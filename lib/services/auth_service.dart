@@ -6,6 +6,22 @@ class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  AuthService() {
+    // S'assurer que la persistance est activée (LOCAL par défaut sur mobile)
+    _initializePersistence();
+  }
+
+  // Initialiser la persistance de l'authentification
+  Future<void> _initializePersistence() async {
+    try {
+      // Sur mobile, la persistance est LOCAL par défaut
+      // Sur web, on peut la configurer explicitement
+      await _auth.setPersistence(Persistence.LOCAL);
+    } catch (e) {
+      print('Persistence configuration: $e');
+    }
+  }
+
   // Get current user
   User? get currentUser => _auth.currentUser;
 
