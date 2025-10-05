@@ -42,6 +42,9 @@ dependencies:
   health: ^13.2.0
   permission_handler: ^11.4.0
   
+  # Notifications
+  flutter_local_notifications: ^17.2.3
+  
   # Navigation
   go_router: ^12.1.3
 
