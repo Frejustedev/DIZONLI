@@ -51,8 +51,8 @@ class _ChallengesScreenState extends State<ChallengesScreen>
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
-            Tab(text: 'Podothons publics', icon: Icon(Icons.public)),
-            Tab(text: 'Mes podothons', icon: Icon(Icons.person)),
+            Tab(text: 'Défis publics', icon: Icon(Icons.public)),
+            Tab(text: 'Mes défis', icon: Icon(Icons.person)),
           ],
         ),
       ),
@@ -67,7 +67,7 @@ class _ChallengesScreenState extends State<ChallengesScreen>
         onPressed: () => _showCreateChallengeDialog(currentUser.id),
         backgroundColor: AppColors.accent,
         icon: const Icon(Icons.add),
-        label: const Text('Créer un podothon'),
+        label: const Text('Créer un défi'),
       ),
     );
   }
@@ -89,7 +89,7 @@ class _ChallengesScreenState extends State<ChallengesScreen>
         final challenges = snapshot.data ?? [];
 
         if (challenges.isEmpty) {
-          return _buildEmptyState('Aucun podothon public pour le moment');
+          return _buildEmptyState('Aucun défi public pour le moment');
         }
 
         return RefreshIndicator(
@@ -130,7 +130,7 @@ class _ChallengesScreenState extends State<ChallengesScreen>
         final challenges = snapshot.data ?? [];
 
         if (challenges.isEmpty) {
-          return _buildEmptyState('Vous ne participez à aucun podothon');
+          return _buildEmptyState('Vous ne participez à aucun défi');
         }
 
         return ListView.builder(
@@ -176,7 +176,7 @@ class _ChallengesScreenState extends State<ChallengesScreen>
   void _showChallengeDetails(ChallengeModel challenge, String userId) {
     // TODO: Navigate to challenge details screen
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Détails du podothon: ${challenge.title}')),
+      SnackBar(content: Text('Détails du défi: ${challenge.title}')),
     );
   }
 
@@ -229,7 +229,7 @@ class _ChallengesScreenState extends State<ChallengesScreen>
   }
 }
 
-// Écran de création de podothon en plein écran
+// Écran de création de défi en plein écran
 class _CreateChallengeScreen extends StatefulWidget {
   final String userId;
 
@@ -324,7 +324,7 @@ class _CreateChallengeScreenState extends State<_CreateChallengeScreen> {
               children: [
                 Icon(Icons.check_circle, color: Colors.white),
                 SizedBox(width: 12),
-                Text('Podothon créé avec succès !'),
+                Text('Défi créé avec succès !'),
               ],
             ),
             backgroundColor: AppColors.success,
@@ -357,7 +357,7 @@ class _CreateChallengeScreenState extends State<_CreateChallengeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Créer un podothon'),
+        title: const Text('Créer un défi'),
         backgroundColor: AppColors.secondary,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -406,7 +406,7 @@ class _CreateChallengeScreenState extends State<_CreateChallengeScreen> {
                 const SizedBox(height: 24),
                 const Center(
                   child: Text(
-                    'Créez votre podothon personnalisé',
+                    'Créez votre défi personnalisé',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -433,7 +433,7 @@ class _CreateChallengeScreenState extends State<_CreateChallengeScreen> {
                     TextFormField(
                       controller: _titleController,
                       decoration: InputDecoration(
-                        labelText: 'Titre du podothon *',
+                        labelText: 'Titre du défi *',
                         hintText: 'Ex: Marathon de Mars',
                         prefixIcon: const Icon(Icons.title, color: AppColors.secondary),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -455,7 +455,7 @@ class _CreateChallengeScreenState extends State<_CreateChallengeScreen> {
                       controller: _descriptionController,
                       decoration: InputDecoration(
                         labelText: 'Description',
-                        hintText: 'Décrivez votre podothon...',
+                        hintText: 'Décrivez votre défi...',
                         prefixIcon: const Icon(Icons.description, color: AppColors.secondary),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                         filled: true,
@@ -474,7 +474,7 @@ class _CreateChallengeScreenState extends State<_CreateChallengeScreen> {
                     DropdownButtonFormField<ChallengeType>(
                       value: _selectedType,
                       decoration: InputDecoration(
-                        labelText: 'Type de podothon *',
+                        labelText: 'Type de défi *',
                         prefixIcon: const Icon(Icons.category, color: AppColors.accent),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                         filled: true,
@@ -502,7 +502,7 @@ class _CreateChallengeScreenState extends State<_CreateChallengeScreen> {
                     DropdownButtonFormField<ChallengeScope>(
                       value: _selectedScope,
                       decoration: InputDecoration(
-                        labelText: 'Portée du podothon *',
+                        labelText: 'Portée du défi *',
                         prefixIcon: const Icon(Icons.people, color: AppColors.primary),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                         filled: true,
@@ -624,7 +624,7 @@ class _CreateChallengeScreenState extends State<_CreateChallengeScreen> {
                     InkWell(
                       onTap: () async {
                         final date = await showDatePicker(
-                          context: context,
+      context: context,
                           initialDate: _startDate ?? DateTime.now(),
                           firstDate: _startDate ?? DateTime.now(),
                           lastDate: DateTime.now().add(const Duration(days: 365)),
@@ -728,7 +728,7 @@ class _CreateChallengeScreenState extends State<_CreateChallengeScreen> {
                         value: _isPublic,
                         onChanged: (value) => setState(() => _isPublic = value),
                         title: Text(
-                          _isPublic ? 'Podothon Public' : 'Podothon Privé',
+                          _isPublic ? 'Défi Public' : 'Défi Privé',
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                           ),
@@ -810,7 +810,7 @@ class _CreateChallengeScreenState extends State<_CreateChallengeScreen> {
                                   Icon(Icons.add_circle, size: 24),
                                   SizedBox(width: 8),
                                   Text(
-                                    'Créer le podothon',
+                                    'Créer le défi',
                                     style: TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,

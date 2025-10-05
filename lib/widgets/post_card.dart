@@ -7,7 +7,8 @@ import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
-import 'dart:html' as html;
+// Import conditionnel pour dart:html (uniquement sur web)
+import 'post_card_web.dart' if (dart.library.io) 'post_card_stub.dart';
 import '../core/constants/app_colors.dart';
 import '../models/post_model.dart';
 
@@ -258,12 +259,9 @@ class _PostCardState extends State<PostCard> {
 
   // Télécharger l'image sur le web
   void _downloadImageWeb(Uint8List imageBytes) {
-    final blob = html.Blob([imageBytes]);
-    final url = html.Url.createObjectUrlFromBlob(blob);
-    final anchor = html.AnchorElement(href: url)
-      ..setAttribute('download', 'DIZONLI_post_${widget.post.id}.png')
-      ..click();
-    html.Url.revokeObjectUrl(url);
+    if (kIsWeb) {
+      downloadImageWebImpl(imageBytes, 'DIZONLI_post_${widget.post.id}.png');
+    }
   }
 
   // Créer une image personnalisée pour le partage
@@ -557,7 +555,7 @@ class _PostCardState extends State<PostCard> {
         break;
       case PostType.challenge:
         icon = Icons.flag;
-        label = 'Podothon';
+        label = 'Défi';
         color = AppColors.secondary;
         break;
       case PostType.custom:

@@ -38,14 +38,14 @@ class AppStrings {
   static const String institutions = 'Administrations / Ministères / Sociétés';
   
   // Challenges
-  static const String challenges = 'Podothons';
-  static const String activeChallenges = 'Podothons actifs';
-  static const String completedChallenges = 'Podothons terminés';
+  static const String challenges = 'Défis';
+  static const String activeChallenges = 'Défis actifs';
+  static const String completedChallenges = 'Défis terminés';
   static const String joinChallenge = 'Rejoindre le défi';
   
-  // Podothons
-  static const String podothons = 'Podothons';
-  static const String createPodothon = 'Créer un Podothon';
+  // Défis
+  static const String podothons = 'Défis';
+  static const String createPodothon = 'Créer un Défi';
   static const String competitive = 'Compétition';
   static const String fun = 'Plaisir';
   

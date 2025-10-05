@@ -180,7 +180,7 @@ class _MainScreenState extends State<MainScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.emoji_events_outlined),
             activeIcon: Icon(Icons.emoji_events),
-            label: 'Podothons',
+            label: 'Défis',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.feed_outlined),
@@ -214,7 +214,7 @@ class _MainScreenState extends State<MainScreen> {
       case 1:
         return 'Groupes';
       case 2:
-        return 'Podothons';
+        return 'Défis';
       case 3:
         return 'Social';
       case 4:
