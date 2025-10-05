@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/constants/app_colors.dart';
 import '../providers/user_provider.dart';
+import '../providers/step_provider.dart';
 import '../providers/notification_provider.dart';
 import 'dashboard/home_tab.dart';
 import 'groups/groups_screen.dart';
