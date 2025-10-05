@@ -3,13 +3,16 @@ import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
+import '../services/user_service.dart';
 
 class UserProvider with ChangeNotifier {
   final AuthService _authService = AuthService();
+  final UserService _userService = UserService();
   UserModel? _currentUser;
   bool _isLoading = false;
   String? _error;
   StreamSubscription<User?>? _authStateSubscription;
+  StreamSubscription<UserModel?>? _userDataSubscription;
 
   UserModel? get currentUser => _currentUser;
   bool get isLoading => _isLoading;
@@ -26,19 +29,45 @@ class UserProvider with ChangeNotifier {
     _authStateSubscription = _authService.authStateChanges.listen((User? user) {
       if (user == null && _currentUser != null) {
         // L'utilisateur a été déconnecté
+        _stopListeningToUserData();
         _currentUser = null;
         notifyListeners();
       }
     });
   }
 
+  // Démarrer l'écoute des changements de données utilisateur
+  void _startListeningToUserData(String userId) {
+    _stopListeningToUserData();
+    
+    _userDataSubscription = _userService.streamUser(userId).listen(
+      (userData) {
+        if (userData != null) {
+          _currentUser = userData;
+          notifyListeners();
+          debugPrint('🔄 Données utilisateur mises à jour en temps réel');
+        }
+      },
+      onError: (error) {
+        debugPrint('❌ Erreur stream utilisateur: $error');
+      },
+    );
+  }
+
+  // Arrêter l'écoute des changements
+  void _stopListeningToUserData() {
+    _userDataSubscription?.cancel();
+    _userDataSubscription = null;
+  }
+
   @override
   void dispose() {
     _authStateSubscription?.cancel();
+    _stopListeningToUserData();
     super.dispose();
   }
 
-  // Load user data
+  // Load user data et démarrer l'écoute en temps réel
   Future<void> loadUser(String userId) async {
     _isLoading = true;
     _error = null;
@@ -46,6 +75,9 @@ class UserProvider with ChangeNotifier {
 
     try {
       _currentUser = await _authService.getUserData(userId);
+      
+      // Démarrer l'écoute en temps réel après le chargement initial
+      _startListeningToUserData(userId);
     } catch (e) {
       _error = e.toString();
     } finally {

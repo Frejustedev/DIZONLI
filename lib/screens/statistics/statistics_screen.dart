@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -23,23 +24,37 @@ class _StatisticsScreenState extends State<StatisticsScreen> with SingleTickerPr
   
   // Statistiques calculées
   Map<String, dynamic> _stats = {};
+  
+  // Timer pour rafraîchissement automatique
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 5, vsync: this);
     _loadStatistics();
+    
+    // Rafraîchir automatiquement toutes les 30 secondes
+    _startAutoRefresh();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _refreshTimer?.cancel();
     super.dispose();
   }
 
+  void _startAutoRefresh() {
+    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+      if (mounted) {
+        _loadStatistics();
+        debugPrint('🔄 Statistiques rafraîchies automatiquement');
+      }
+    });
+  }
+
   Future<void> _loadStatistics() async {
-    setState(() => _isLoading = true);
-    
     final userProvider = context.read<UserProvider>();
     if (userProvider.currentUser == null) return;
     
@@ -49,14 +64,16 @@ class _StatisticsScreenState extends State<StatisticsScreen> with SingleTickerPr
       // Charger tous les enregistrements
       final allRecords = await _stepService.getAllStepRecords(userId);
       
-      setState(() {
-        _records = allRecords;
-        _calculateStatistics();
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() => _isLoading = false);
       if (mounted) {
+        setState(() {
+          _records = allRecords;
+          _calculateStatistics();
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Erreur: $e')),
         );
