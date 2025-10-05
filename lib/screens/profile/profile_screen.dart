@@ -9,7 +9,7 @@ import '../../models/badge_model.dart';
 import '../../services/user_service.dart';
 
 class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({Key? key}) : super(key: key);
+  const ProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +34,7 @@ class ProfileScreen extends StatelessWidget {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   colors: [AppColors.primary, AppColors.primaryDark],
                   begin: Alignment.topLeft,
@@ -304,7 +304,7 @@ class ProfileScreen extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 12,
                   color: AppColors.textSecondary,
                 ),
@@ -337,6 +337,15 @@ class ProfileScreen extends StatelessWidget {
             subtitle: Text('${user.dailyGoal} pas'),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
             onTap: () => _showEditGoalDialog(context, user),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.people, color: AppColors.secondary),
+            title: const Text('Mes amis'),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () {
+              Navigator.pushNamed(context, '/friends');
+            },
           ),
           const Divider(height: 1),
           ListTile(
@@ -491,13 +500,13 @@ class ProfileScreen extends StatelessWidget {
                       color: AppColors.accent.withOpacity(0.3),
                     ),
                   ),
-                  child: Row(
+                  child: const Row(
                     children: [
-                      const Icon(Icons.lightbulb_outline, 
+                      Icon(Icons.lightbulb_outline, 
                         color: AppColors.accent, 
                         size: 20,
                       ),
-                      const SizedBox(width: 8),
+                      SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           'Recommandation OMS : 10 000 pas/jour',
@@ -566,11 +575,11 @@ class ProfileScreen extends StatelessWidget {
                       
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Row(
+                          content: const Row(
                             children: [
-                              const Icon(Icons.error_outline, color: Colors.white),
-                              const SizedBox(width: 12),
-                              const Expanded(
+                              Icon(Icons.error_outline, color: Colors.white),
+                              SizedBox(width: 12),
+                              Expanded(
                                 child: Text('Erreur lors de la mise à jour'),
                               ),
                             ],

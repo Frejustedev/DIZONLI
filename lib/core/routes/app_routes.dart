@@ -8,6 +8,7 @@ import '../../screens/challenges/challenges_screen.dart';
 import '../../screens/profile/profile_screen.dart';
 import '../../screens/social/social_feed_screen.dart';
 import '../../screens/badges/badges_screen.dart';
+import '../../screens/friends/friends_screen.dart';
 
 class AppRoutes {
   static const String login = '/login';
@@ -20,6 +21,7 @@ class AppRoutes {
   static const String social = '/social';
   static const String settings = '/settings';
   static const String badges = '/badges';
+  static const String friends = '/friends';
 
   static Map<String, WidgetBuilder> getRoutes() {
     return {
@@ -32,6 +34,7 @@ class AppRoutes {
       profile: (context) => const ProfileScreen(),
       social: (context) => const SocialFeedScreen(),
       badges: (context) => const BadgesScreen(),
+      friends: (context) => const FriendsScreen(),
     };
   }
 }
