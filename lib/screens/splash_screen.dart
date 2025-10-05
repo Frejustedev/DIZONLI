@@ -6,7 +6,7 @@ import '../providers/user_provider.dart';
 import '../core/routes/app_routes.dart';
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({Key? key}) : super(key: key);
+  const SplashScreen({super.key});
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -59,10 +59,36 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       if (currentUser != null) {
         // User is signed in, load user data
         final userProvider = context.read<UserProvider>();
-        await userProvider.loadUser(currentUser.uid);
-
-        if (mounted) {
+        
+        // Ajouter un timeout de 10 secondes
+        final loadUserFuture = userProvider.loadUser(currentUser.uid);
+        final timeoutFuture = Future.delayed(const Duration(seconds: 10));
+        
+        await Future.any([loadUserFuture, timeoutFuture]);
+        
+        // Vérifier si les données ont été chargées
+        if (userProvider.currentUser != null && mounted) {
           Navigator.pushReplacementNamed(context, AppRoutes.main);
+        } else {
+          // Données utilisateur manquantes ou timeout
+          debugPrint('❌ Données utilisateur non trouvées ou timeout');
+          if (mounted) {
+            // Déconnecter et rediriger vers login
+            await FirebaseAuth.instance.signOut();
+            
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  '⚠️ Erreur de chargement du profil.\nVeuillez vous reconnecter.',
+                  style: TextStyle(color: Colors.white),
+                ),
+                backgroundColor: Colors.orange,
+                duration: Duration(seconds: 4),
+              ),
+            );
+            
+            Navigator.pushReplacementNamed(context, AppRoutes.login);
+          }
         }
       } else {
         // No user signed in, go to login
@@ -71,8 +97,20 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
         }
       }
     } catch (e) {
-      debugPrint('Error checking auth status: $e');
+      debugPrint('❌ Error checking auth status: $e');
       if (mounted) {
+        // Déconnecter en cas d'erreur
+        try {
+          await FirebaseAuth.instance.signOut();
+        } catch (_) {}
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        
         Navigator.pushReplacementNamed(context, AppRoutes.login);
       }
     }
