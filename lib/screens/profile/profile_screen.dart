@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_strings.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/badge_provider.dart';
 import '../../models/badge_model.dart';
+import '../../services/user_service.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -334,9 +336,7 @@ class ProfileScreen extends StatelessWidget {
             title: const Text('Objectif journalier'),
             subtitle: Text('${user.dailyGoal} pas'),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () {
-              // TODO: Edit goal
-            },
+            onTap: () => _showEditGoalDialog(context, user),
           ),
           const Divider(height: 1),
           ListTile(
@@ -406,6 +406,199 @@ class ProfileScreen extends StatelessWidget {
       default:
         return Icons.star;
     }
+  }
+
+  void _showEditGoalDialog(BuildContext context, user) {
+    final TextEditingController controller = TextEditingController(
+      text: user.dailyGoal.toString(),
+    );
+    final formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.flag, color: AppColors.primary),
+              ),
+              const SizedBox(width: 12),
+              const Text('Objectif journalier'),
+            ],
+          ),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Définissez votre nombre de pas quotidien',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: controller,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                  ],
+                  decoration: InputDecoration(
+                    labelText: 'Nombre de pas',
+                    hintText: 'Ex: 10000',
+                    suffixText: 'pas',
+                    prefixIcon: const Icon(Icons.directions_walk, color: AppColors.primary),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    filled: true,
+                    fillColor: Colors.grey[50],
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Veuillez entrer un objectif';
+                    }
+                    final goal = int.tryParse(value);
+                    if (goal == null) {
+                      return 'Veuillez entrer un nombre valide';
+                    }
+                    if (goal < 1000) {
+                      return 'L\'objectif doit être au moins 1000 pas';
+                    }
+                    if (goal > 100000) {
+                      return 'L\'objectif ne peut pas dépasser 100000 pas';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.accent.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: AppColors.accent.withOpacity(0.3),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.lightbulb_outline, 
+                        color: AppColors.accent, 
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Recommandation OMS : 10 000 pas/jour',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Annuler'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (formKey.currentState!.validate()) {
+                  final newGoal = int.parse(controller.text);
+                  
+                  // Show loading
+                  Navigator.pop(dialogContext);
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (context) => const Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                  );
+
+                  try {
+                    final userService = UserService();
+                    await userService.updateDailyGoal(user.id, newGoal);
+                    
+                    // Update local state
+                    if (context.mounted) {
+                      await context.read<UserProvider>().loadUser(user.id);
+                      
+                      Navigator.pop(context); // Close loading
+                      
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Row(
+                            children: [
+                              const Icon(Icons.check_circle, color: Colors.white),
+                              const SizedBox(width: 12),
+                              Text('Objectif mis à jour : $newGoal pas/jour'),
+                            ],
+                          ),
+                          backgroundColor: AppColors.success,
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      Navigator.pop(context); // Close loading
+                      
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Row(
+                            children: [
+                              const Icon(Icons.error_outline, color: Colors.white),
+                              const SizedBox(width: 12),
+                              const Expanded(
+                                child: Text('Erreur lors de la mise à jour'),
+                              ),
+                            ],
+                          ),
+                          backgroundColor: AppColors.error,
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      );
+                    }
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text('Enregistrer'),
+            ),
+          ],
+        );
+      },
+    );
   }
 }
 
