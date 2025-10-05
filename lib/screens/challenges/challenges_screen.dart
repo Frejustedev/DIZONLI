@@ -6,10 +6,11 @@ import '../../models/challenge_model.dart';
 import '../../services/challenge_service.dart';
 import '../../providers/user_provider.dart';
 import '../../widgets/challenge_card.dart';
+import 'challenge_detail_screen.dart';
 import 'package:intl/intl.dart';
 
 class ChallengesScreen extends StatefulWidget {
-  const ChallengesScreen({Key? key}) : super(key: key);
+  const ChallengesScreen({super.key});
 
   @override
   State<ChallengesScreen> createState() => _ChallengesScreenState();
@@ -174,10 +175,15 @@ class _ChallengesScreenState extends State<ChallengesScreen>
   }
 
   void _showChallengeDetails(ChallengeModel challenge, String userId) {
-    // TODO: Navigate to challenge details screen
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Détails du défi: ${challenge.title}')),
-    );
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChallengeDetailScreen(challenge: challenge),
+      ),
+    ).then((_) {
+      // Rafraîchir la liste quand on revient
+      setState(() {});
+    });
   }
 
   void _showCreateChallengeDialog(String userId) {
@@ -472,7 +478,7 @@ class _CreateChallengeScreenState extends State<_CreateChallengeScreen> {
                   title: '🎯 Configuration',
                   children: [
                     DropdownButtonFormField<ChallengeType>(
-                      value: _selectedType,
+                      initialValue: _selectedType,
                       decoration: InputDecoration(
                         labelText: 'Type de défi *',
                         prefixIcon: const Icon(Icons.category, color: AppColors.accent),
@@ -500,7 +506,7 @@ class _CreateChallengeScreenState extends State<_CreateChallengeScreen> {
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<ChallengeScope>(
-                      value: _selectedScope,
+                      initialValue: _selectedScope,
                       decoration: InputDecoration(
                         labelText: 'Portée du défi *',
                         prefixIcon: const Icon(Icons.people, color: AppColors.primary),
@@ -751,7 +757,7 @@ class _CreateChallengeScreenState extends State<_CreateChallengeScreen> {
                             size: 24,
                           ),
                         ),
-                        activeColor: AppColors.primary,
+                        activeThumbColor: AppColors.primary,
                       ),
                     ),
                   ],
