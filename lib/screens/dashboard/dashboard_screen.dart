@@ -24,7 +24,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await context.read<StepProvider>().initialize();
+      final userProvider = context.read<UserProvider>();
+      if (userProvider.currentUser != null) {
+        await context.read<StepProvider>().initialize(
+          userId: userProvider.currentUser!.id,
+        );
+      }
       await _checkBadges();
     });
   }
@@ -131,7 +136,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          await stepProvider.initialize();
+          await stepProvider.initialize(userId: user.id);
+          await stepProvider.forceSave();
           await _checkBadges();
         },
         child: SingleChildScrollView(

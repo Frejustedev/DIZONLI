@@ -19,7 +19,7 @@ class MainScreen extends StatefulWidget {
   State<MainScreen> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> {
+class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   int _currentIndex = 0;
   DateTime? _lastBackPressTime;
 
@@ -32,6 +32,31 @@ class _MainScreenState extends State<MainScreen> {
     const StatisticsScreen(),
     const ProfileScreen(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    // Écouter les changements de cycle de vie de l'application
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    
+    // Sauvegarder les pas quand l'app passe en arrière-plan
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      final stepProvider = context.read<StepProvider>();
+      stepProvider.forceSave();
+      debugPrint('🔄 Sauvegarde des pas (app en arrière-plan)');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

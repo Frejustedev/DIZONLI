@@ -91,7 +91,7 @@ class _DashboardScreenV2State extends State<DashboardScreenV2> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Bonjour, ${user.firstName} 👋',
+              'Bonjour, ${user.name.split(' ').first} 👋',
               style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -124,7 +124,8 @@ class _DashboardScreenV2State extends State<DashboardScreenV2> {
       body: RefreshIndicator(
         onRefresh: () async {
           await Future.wait([
-            stepProvider.initialize(),
+            stepProvider.initialize(userId: user.id),
+            stepProvider.forceSave(),
             _loadData(),
           ]);
         },
@@ -181,8 +182,8 @@ class _DashboardScreenV2State extends State<DashboardScreenV2> {
                     // Stats Summary
                     StatsSummary(
                       totalSteps: user.totalSteps,
-                      totalDistance: user.totalDistance,
-                      totalCalories: user.totalCalories,
+                      totalDistance: user.totalDistance.toDouble(),
+                      totalCalories: user.totalCalories.toDouble(),
                       streak: _streak,
                     ),
                     const SizedBox(height: 16),

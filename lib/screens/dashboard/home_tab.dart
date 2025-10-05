@@ -22,7 +22,12 @@ class _HomeTabState extends State<HomeTab> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _initializeApp();
-      await context.read<StepProvider>().initialize();
+      final userProvider = context.read<UserProvider>();
+      if (userProvider.currentUser != null) {
+        await context.read<StepProvider>().initialize(
+          userId: userProvider.currentUser!.id,
+        );
+      }
       await _checkBadges();
     });
   }
@@ -75,7 +80,8 @@ class _HomeTabState extends State<HomeTab> {
 
     return RefreshIndicator(
       onRefresh: () async {
-        await stepProvider.initialize();
+        await stepProvider.initialize(userId: user.id);
+        await stepProvider.forceSave(); // Forcer la sauvegarde lors du refresh
         await _checkBadges();
       },
       child: SingleChildScrollView(
