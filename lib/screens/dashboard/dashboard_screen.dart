@@ -10,7 +10,7 @@ import '../../services/friendship_service.dart';
 import '../../models/step_record_model.dart';
 import '../../models/user_model.dart';
 import '../../widgets/progress_ring.dart';
-import '../../widgets/weekly_chart.dart';
+import '../../widgets/google_fit_weekly_chart.dart';
 import '../../widgets/stats_summary.dart';
 import '../../widgets/mini_leaderboard.dart';
 import '../../widgets/stat_card.dart';
@@ -150,18 +150,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                     const SizedBox(height: 24),
 
+                    // Google Fit Style Weekly Charts
+                    GoogleFitWeeklyChart(
+                      weekData: _weekData,
+                      dailyGoal: user.dailyGoal,
+                    ),
+                    const SizedBox(height: 16),
+
                     // Quick Stats Cards
                     Row(
                       children: [
-                        Expanded(
-                          child: StatCard(
-                            icon: Icons.straighten,
-                            title: 'Distance',
-                            value: '${stepProvider.distance.toStringAsFixed(2)} km',
-                            color: AppColors.secondary,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
                         Expanded(
                           child: StatCard(
                             icon: Icons.local_fire_department,
@@ -170,14 +168,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             color: AppColors.accent,
                           ),
                         ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: StatCard(
+                            icon: Icons.track_changes,
+                            title: 'Streak',
+                            value: '$_streak jours',
+                            color: AppColors.primary,
+                          ),
+                        ),
                       ],
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Weekly Chart
-                    WeeklyChart(
-                      weekData: _weekData,
-                      dailyGoal: user.dailyGoal,
                     ),
                     const SizedBox(height: 16),
 

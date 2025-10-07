@@ -13,14 +13,14 @@ class GroupMemberTile extends StatelessWidget {
   final VoidCallback? onRemove;
 
   const GroupMemberTile({
-    Key? key,
+    super.key,
     required this.user,
     required this.rank,
     this.isAdmin = false,
     this.isCurrentUser = false,
     this.onTap,
     this.onRemove,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -151,7 +151,7 @@ class GroupMemberTile extends StatelessWidget {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.directions_walk,
                           size: 14,
                           color: AppColors.textSecondary,

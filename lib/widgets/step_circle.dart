@@ -8,11 +8,11 @@ class StepCircle extends StatelessWidget {
   final double progress;
 
   const StepCircle({
-    Key? key,
+    super.key,
     required this.steps,
     required this.goal,
     required this.progress,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -35,7 +35,7 @@ class StepCircle extends StatelessWidget {
               alignment: Alignment.center,
               children: [
                 // Background Circle
-                SizedBox(
+                const SizedBox(
                   width: 240,
                   height: 240,
                   child: CircularProgressIndicator(
@@ -75,7 +75,7 @@ class StepCircle extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       '/ $goal pas',
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 16,
                         color: AppColors.textSecondary,
                       ),
@@ -83,7 +83,7 @@ class StepCircle extends StatelessWidget {
                     const SizedBox(height: 8),
                     Text(
                       '${(progress * 100).toStringAsFixed(0)}%',
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w600,
                         color: AppColors.primary,

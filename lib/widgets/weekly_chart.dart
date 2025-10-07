@@ -9,10 +9,10 @@ class WeeklyChart extends StatelessWidget {
   final int dailyGoal;
 
   const WeeklyChart({
-    Key? key,
+    super.key,
     required this.weekData,
     required this.dailyGoal,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -137,7 +137,7 @@ class WeeklyChart extends StatelessWidget {
                           show: true,
                           alignment: Alignment.topRight,
                           padding: const EdgeInsets.only(right: 5, bottom: 5),
-                          style: TextStyle(
+                          style: const TextStyle(
                             color: AppColors.accent,
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
@@ -189,7 +189,7 @@ class WeeklyChart extends StatelessWidget {
               top: Radius.circular(4),
             ),
             gradient: goalAchieved
-                ? LinearGradient(
+                ? const LinearGradient(
                     colors: [AppColors.primary, AppColors.primaryDark],
                     begin: Alignment.bottomCenter,
                     end: Alignment.topCenter,

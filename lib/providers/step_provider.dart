@@ -27,35 +27,41 @@ class StepProvider with ChangeNotifier {
   double getProgress(int goal) => _stepService.getProgress(goal);
 
   // Initialize step counter
-  Future<void> initialize({String? userId}) async {
-    if (_isInitialized && userId == _currentUserId) return;
+  Future<void> initialize({String? userId, bool forceReinit = false}) async {
+    if (_isInitialized && userId == _currentUserId && !forceReinit) return;
+    
+    // Si on force la réinitialisation, nettoyer les anciens timers
+    if (forceReinit) {
+      _saveTimer?.cancel();
+      _systemStepsRefreshTimer?.cancel();
+      _isInitialized = false;
+    }
     
     _currentUserId = userId;
     
-    // Pour le moment, désactiver Google Fit/Health Connect et utiliser uniquement le capteur local
-    // TODO: Réactiver après avoir configuré correctement les permissions Health
-    _useSystemSteps = false;
-    
-    /* 
-    // Essayer d'utiliser le système (Google Fit / Health Connect) en priorité
+    // ✅ ACTIVÉ : Essayer d'utiliser le système (Google Fit / Health Connect) en priorité
     if (_currentUserId != null && !kIsWeb) {
       try {
+        debugPrint('🔄 Tentative d\'initialisation Google Fit / Health Connect...');
         await _backgroundSync.startPeriodicSync(_currentUserId!);
         _useSystemSteps = true;
-        debugPrint('✅ Utilisation de Google Fit / Health Connect');
+        debugPrint('✅ Utilisation de Google Fit / Health Connect activée');
+        
+        // Notifier les listeners pour mettre à jour l'UI
+        notifyListeners();
         
         // Rafraîchir les pas du système toutes les 5 minutes
         _startSystemStepsRefresh();
       } catch (e) {
-        debugPrint('⚠️ Impossible d\'utiliser le système, fallback sur capteur: $e');
+        debugPrint('⚠️ Impossible d\'utiliser le système, fallback sur capteur local: $e');
         _useSystemSteps = false;
+        notifyListeners();
       }
     }
-    */
     
-    // Utiliser le capteur local
+    // Fallback : Utiliser le capteur local si Google Fit échoue
     if (!_useSystemSteps && !kIsWeb) {
-      debugPrint('🚶 Démarrage du capteur de pas local...');
+      debugPrint('🚶 Démarrage du capteur de pas local (fallback)...');
       await _stepService.initialize();
       _startListening();
       _startAutoSave();

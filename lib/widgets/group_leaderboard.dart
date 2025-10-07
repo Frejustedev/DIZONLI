@@ -14,14 +14,14 @@ class GroupLeaderboard extends StatelessWidget {
   final Function(UserModel)? onRemoveMember;
 
   const GroupLeaderboard({
-    Key? key,
+    super.key,
     required this.members,
     required this.currentUserId,
     required this.adminId,
     this.isCurrentUserAdmin = false,
     this.onMemberTap,
     this.onRemoveMember,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -105,7 +105,7 @@ class GroupLeaderboard extends StatelessWidget {
   }
 
   Widget _buildPodium(List<UserModel> sortedMembers) {
-    final first = sortedMembers.length > 0 ? sortedMembers[0] : null;
+    final first = sortedMembers.isNotEmpty ? sortedMembers[0] : null;
     final second = sortedMembers.length > 1 ? sortedMembers[1] : null;
     final third = sortedMembers.length > 2 ? sortedMembers[2] : null;
 
@@ -201,7 +201,7 @@ class GroupLeaderboard extends StatelessWidget {
               ),
             ),
             if (rank == 1)
-              Positioned(
+              const Positioned(
                 top: -10,
                 left: 0,
                 right: 0,
@@ -232,7 +232,7 @@ class GroupLeaderboard extends StatelessWidget {
         
         // Steps
         Text(
-          '${_formatNumber(user.totalSteps)}',
+          _formatNumber(user.totalSteps),
           style: TextStyle(
             fontSize: 11,
             color: color,

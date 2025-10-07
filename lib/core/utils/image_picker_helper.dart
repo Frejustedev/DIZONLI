@@ -48,11 +48,19 @@ class ImagePickerHelper {
   /// 
   /// Retourne le fichier image sélectionné et recadré, ou null si annulé
   Future<File?> pickProfileImage(BuildContext context) async {
-    return await pickAndCropImage(
-      context,
-      cropSquare: true,
-      cropTitle: 'Recadrer la photo de profil',
+    // TEMPORAIRE : Sans recadrage pour tester l'upload direct
+    final source = await _showImageSourceDialog(context);
+    if (source == null) return null;
+
+    final XFile? image = await _picker.pickImage(
+      source: source,
+      imageQuality: 85,
+      maxWidth: 1920,
+      maxHeight: 1920,
     );
+
+    if (image == null) return null;
+    return File(image.path);
   }
 
   /// Sélectionne une image de post (format libre)

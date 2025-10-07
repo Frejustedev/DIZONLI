@@ -5,16 +5,14 @@ import '../providers/user_provider.dart';
 import '../providers/step_provider.dart';
 import '../providers/notification_provider.dart';
 import 'dashboard/home_tab.dart';
-import 'groups/groups_screen.dart';
+import 'social/social_hub_screen.dart';
 import 'challenges/challenges_screen.dart';
-import 'social/social_feed_screen.dart';
-import 'badges/badges_screen.dart';
-import 'statistics/statistics_screen.dart';
 import 'profile/profile_screen.dart';
+import 'settings/settings_screen.dart';
 import 'notifications/notifications_screen.dart';
 
 class MainScreen extends StatefulWidget {
-  const MainScreen({Key? key}) : super(key: key);
+  const MainScreen({super.key});
 
   @override
   State<MainScreen> createState() => _MainScreenState();
@@ -26,12 +24,10 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   final List<Widget> _screens = [
     const HomeTab(),
-    const GroupsListScreen(),
+    const SocialHubScreen(),
     const ChallengesScreen(),
-    const SocialFeedScreen(),
-    const BadgesScreen(),
-    const StatisticsScreen(),
     const ProfileScreen(),
+    const SettingsScreen(),
   ];
 
   @override
@@ -226,9 +222,9 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
             label: 'Accueil',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.groups_outlined),
-            activeIcon: Icon(Icons.groups),
-            label: 'Groupes',
+            icon: Icon(Icons.people_outline),
+            activeIcon: Icon(Icons.people),
+            label: 'Social',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.emoji_events_outlined),
@@ -236,24 +232,14 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
             label: 'Défis',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.feed_outlined),
-            activeIcon: Icon(Icons.feed),
-            label: 'Social',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.military_tech_outlined),
-            activeIcon: Icon(Icons.military_tech),
-            label: 'Badges',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.bar_chart),
-            activeIcon: Icon(Icons.bar_chart),
-            label: 'Stats',
-          ),
-          BottomNavigationBarItem(
             icon: Icon(Icons.person_outline),
             activeIcon: Icon(Icons.person),
             label: 'Profil',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.settings_outlined),
+            activeIcon: Icon(Icons.settings),
+            label: 'Paramètres',
           ),
         ],
       ),
@@ -266,17 +252,13 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       case 0:
         return 'Accueil';
       case 1:
-        return 'Groupes';
+        return 'Social';
       case 2:
         return 'Défis';
       case 3:
-        return 'Social';
-      case 4:
-        return 'Badges';
-      case 5:
-        return 'Statistiques';
-      case 6:
         return 'Profil';
+      case 4:
+        return 'Paramètres';
       default:
         return 'DIZONLI';
     }

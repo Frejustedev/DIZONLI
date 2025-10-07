@@ -10,11 +10,11 @@ class GroupCard extends StatelessWidget {
   final bool isAdmin;
 
   const GroupCard({
-    Key? key,
+    super.key,
     required this.group,
     required this.onTap,
     this.isAdmin = false,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

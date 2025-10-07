@@ -9,12 +9,12 @@ class StatsSummary extends StatelessWidget {
   final int streak;
 
   const StatsSummary({
-    Key? key,
+    super.key,
     required this.totalSteps,
     required this.totalDistance,
     required this.totalCalories,
     required this.streak,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

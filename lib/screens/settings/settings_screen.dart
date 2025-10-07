@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/constants/app_colors.dart';
 import '../../providers/user_provider.dart';
+import '../../providers/step_provider.dart';
 import '../../services/auth_service.dart';
 import '../../services/user_service.dart';
 
@@ -61,6 +62,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
           // Section Objectifs
           _buildSectionHeader('Objectifs'),
           _buildDailyGoalTile(),
+          const Divider(height: 1),
+
+          // Section Comptage des pas
+          _buildSectionHeader('Comptage des pas'),
+          _buildStepCountingTile(),
           const Divider(height: 1),
 
           // Section Notifications
@@ -152,6 +158,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
       subtitle: Text('$_dailyGoal pas par jour'),
       trailing: const Icon(Icons.chevron_right),
       onTap: () => _showDailyGoalDialog(),
+    );
+  }
+
+  Widget _buildStepCountingTile() {
+    final stepProvider = context.watch<StepProvider>();
+    final usingSystemSteps = stepProvider.usingSystemSteps;
+
+    return ListTile(
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: (usingSystemSteps ? Colors.green : Colors.orange).withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(
+          usingSystemSteps ? Icons.health_and_safety : Icons.phone_android,
+          color: usingSystemSteps ? Colors.green : Colors.orange,
+        ),
+      ),
+      title: Text(
+        usingSystemSteps ? 'Google Fit / Health Connect' : 'Capteur local',
+        style: const TextStyle(fontWeight: FontWeight.w600),
+      ),
+      subtitle: Text(
+        usingSystemSteps
+            ? '✅ Compte les pas 24h/24 en arrière-plan'
+            : '⚠️ Compte uniquement quand l\'app est ouverte',
+      ),
+      trailing: Icon(
+        usingSystemSteps ? Icons.check_circle : Icons.info_outline,
+        color: usingSystemSteps ? Colors.green : Colors.orange,
+      ),
+      onTap: () => _showStepCountingInfo(usingSystemSteps),
     );
   }
 
@@ -528,6 +567,211 @@ class _SettingsScreenState extends State<SettingsScreen> {
               backgroundColor: Colors.red,
             ),
             child: const Text('Supprimer définitivement'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showStepCountingInfo(bool usingSystemSteps) async {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(
+              usingSystemSteps ? Icons.health_and_safety : Icons.phone_android,
+              color: usingSystemSteps ? Colors.green : Colors.orange,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                usingSystemSteps ? 'Google Fit / Health Connect' : 'Capteur Local',
+                style: const TextStyle(fontSize: 16),
+              ),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (usingSystemSteps) ...[
+                const Text(
+                  '✅ Mode activé',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _buildInfoRow(Icons.check_circle, 'Compte les pas 24h/24', Colors.green),
+                _buildInfoRow(Icons.check_circle, 'Fonctionne en arrière-plan', Colors.green),
+                _buildInfoRow(Icons.check_circle, 'Fonctionne app fermée', Colors.green),
+                _buildInfoRow(Icons.check_circle, 'Synchronisation auto (15 min)', Colors.green),
+                _buildInfoRow(Icons.check_circle, 'Économie de batterie', Colors.green),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.green),
+                  ),
+                  child: const Text(
+                    '🎉 Configuration optimale !\n\nVous profitez du meilleur comptage de pas possible avec synchronisation automatique via Google Fit ou Health Connect.',
+                    style: TextStyle(fontSize: 13),
+                  ),
+                ),
+              ] else ...[
+                const Text(
+                  '⚠️ Mode fallback',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.orange,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _buildInfoRow(Icons.warning, 'Nécessite l\'app ouverte', Colors.orange),
+                _buildInfoRow(Icons.warning, 'Ne compte pas en arrière-plan', Colors.orange),
+                _buildInfoRow(Icons.warning, 'Consomme plus de batterie', Colors.orange),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange),
+                  ),
+                  child: const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '📱 Pour activer Google Fit :',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        '1. Installer Google Fit depuis le Play Store\n'
+                        '2. Ouvrir Google Fit et accepter les permissions\n'
+                        '3. Redémarrer DIZONLI',
+                        style: TextStyle(fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          if (!usingSystemSteps)
+            ElevatedButton.icon(
+              onPressed: () async {
+                Navigator.pop(context);
+                await _retryGoogleFitActivation();
+              },
+              icon: const Icon(Icons.refresh),
+              label: const Text('Réessayer'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Fermer'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _retryGoogleFitActivation() async {
+    try {
+      // Afficher un indicateur de chargement
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: Card(
+            child: Padding(
+              padding: EdgeInsets.all(20.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Réinitialisation de Google Fit...'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+      if (userId == null) return;
+
+      // Réinitialiser le StepProvider
+      final stepProvider = context.read<StepProvider>();
+      await stepProvider.initialize(userId: userId, forceReinit: true);
+
+      // Fermer le dialogue de chargement
+      if (mounted) Navigator.pop(context);
+
+      // Attendre un petit moment pour que notifyListeners() se propage
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // Afficher le résultat
+      if (mounted) {
+        final success = stepProvider.usingSystemSteps;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              success
+                  ? '✅ Google Fit activé avec succès!'
+                  : '❌ Google Fit non disponible. Vérifiez que Google Fit est installé et ouvert.',
+            ),
+            backgroundColor: success ? Colors.green : Colors.orange,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      // Fermer le dialogue de chargement en cas d'erreur
+      if (mounted) Navigator.pop(context);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Erreur: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  Widget _buildInfoRow(IconData icon, String text, Color color) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: color),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(fontSize: 14),
+            ),
           ),
         ],
       ),

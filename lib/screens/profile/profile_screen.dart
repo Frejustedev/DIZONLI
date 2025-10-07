@@ -28,15 +28,6 @@ class ProfileScreen extends StatelessWidget {
         title: const Text('Profil'),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () {
-              Navigator.pushNamed(context, '/settings');
-            },
-            tooltip: 'Paramètres',
-          ),
-        ],
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -361,20 +352,20 @@ class ProfileScreen extends StatelessWidget {
           ),
           const Divider(height: 1),
           ListTile(
+            leading: const Icon(Icons.bar_chart, color: AppColors.secondary),
+            title: const Text('Statistiques'),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () {
+              Navigator.pushNamed(context, '/statistics');
+            },
+          ),
+          const Divider(height: 1),
+          ListTile(
             leading: const Icon(Icons.workspace_premium, color: AppColors.gold),
             title: const Text(AppStrings.certificates),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
             onTap: () {
               // TODO: View certificates
-            },
-          ),
-          const Divider(height: 1),
-          ListTile(
-            leading: const Icon(Icons.settings, color: AppColors.textSecondary),
-            title: const Text(AppStrings.settings),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () {
-              Navigator.pushNamed(context, '/settings');
             },
           ),
           const Divider(height: 1),

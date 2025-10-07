@@ -1,11 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/group_model.dart';
 import 'firestore_service.dart';
+import 'user_service.dart';
 import 'dart:math';
 
 /// Service for managing groups in Firestore
 class GroupService {
   final FirestoreService _firestoreService = FirestoreService();
+  final UserService _userService = UserService();
   final String _collection = 'groups';
 
   /// Create a new group and save to Firestore
@@ -37,10 +39,47 @@ class GroupService {
         .collection(_collection)
         .where('memberIds', arrayContains: userId)
         .snapshots()
-        .map((snapshot) {
-      return snapshot.docs
+        .asyncMap((snapshot) async {
+      // Charger les groupes
+      final groups = snapshot.docs
           .map((doc) => GroupModel.fromJson(doc.data()))
           .toList();
+      
+      // Calculer le totalSteps pour chaque groupe
+      final enrichedGroups = <GroupModel>[];
+      for (final group in groups) {
+        int totalSteps = 0;
+        
+        // Charger les pas de tous les membres
+        for (final memberId in group.memberIds) {
+          try {
+            final user = await _userService.getUser(memberId);
+            if (user != null) {
+              totalSteps += user.totalSteps;
+            }
+          } catch (e) {
+            // Ignorer les erreurs pour les utilisateurs individuels
+            continue;
+          }
+        }
+        
+        // Créer une nouvelle instance avec le totalSteps calculé
+        enrichedGroups.add(GroupModel(
+          id: group.id,
+          name: group.name,
+          description: group.description,
+          logoUrl: group.logoUrl,
+          type: group.type,
+          adminId: group.adminId,
+          memberIds: group.memberIds,
+          totalSteps: totalSteps,
+          createdAt: group.createdAt,
+          inviteCode: group.inviteCode,
+          isPrivate: group.isPrivate,
+        ));
+      }
+      
+      return enrichedGroups;
     });
   }
 

@@ -19,9 +19,9 @@ class CloudinaryService {
   
   // ✅ Credentials Cloudinary configurés
   // Cloud Name: dwhnoukrt
-  // Upload Preset: ml_default (preset par défaut unsigned)
+  // Upload Preset: dizonli_unsigned (créé manuellement)
   static const String _cloudName = 'dwhnoukrt';
-  static const String _uploadPreset = 'ml_default';
+  static const String _uploadPreset = 'dizonli_unsigned';
 
   CloudinaryService() {
     _cloudinary = CloudinaryPublic(
@@ -37,9 +37,14 @@ class CloudinaryService {
   /// [imageFile] Fichier image à uploader
   /// 
   /// Retourne l'URL publique de l'image uploadée
-  /// Retourne null en cas d'erreur
-  Future<String?> uploadProfilePicture(String userId, File imageFile) async {
+  /// Lance une exception en cas d'erreur
+  Future<String> uploadProfilePicture(String userId, File imageFile) async {
     try {
+      print('📸 Début upload photo profil pour user: $userId');
+      print('📸 Fichier: ${imageFile.path}');
+      print('📸 Cloud Name: $_cloudName');
+      print('📸 Upload Preset: $_uploadPreset');
+      
       final fileName = '$userId-${DateTime.now().millisecondsSinceEpoch}';
       
       final response = await _cloudinary.uploadFile(
@@ -51,11 +56,14 @@ class CloudinaryService {
         ),
       );
       
+      print('✅ Upload réussi! URL: ${response.secureUrl}');
+      
       // URL sécurisée (HTTPS)
       return response.secureUrl;
-    } catch (e) {
+    } catch (e, stackTrace) {
       print('❌ Erreur upload photo profil Cloudinary: $e');
-      return null;
+      print('❌ Stack trace: $stackTrace');
+      throw Exception('Échec de l\'upload vers Cloudinary: $e');
     }
   }
 

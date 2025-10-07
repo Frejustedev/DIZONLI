@@ -21,13 +21,13 @@ class PostCard extends StatefulWidget {
   final Function(String postId, String userId)? onDelete;
 
   const PostCard({
-    Key? key,
+    super.key,
     required this.post,
     required this.currentUserId,
     this.onLike,
     this.onComment,
     this.onDelete,
-  }) : super(key: key);
+  });
 
   @override
   State<PostCard> createState() => _PostCardState();
@@ -493,7 +493,7 @@ class _PostCardState extends State<PostCard> {
       ..color = AppColors.primary.withOpacity(0.3)
       ..strokeWidth = 2;
     canvas.drawLine(
-      Offset(100, footerY),
+      const Offset(100, footerY),
       Offset(size.width - 100, footerY),
       linePaint,
     );

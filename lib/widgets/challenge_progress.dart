@@ -9,11 +9,11 @@ class ChallengeProgress extends StatelessWidget {
   final bool showLeaderboard;
 
   const ChallengeProgress({
-    Key? key,
+    super.key,
     required this.challenge,
     required this.userId,
     this.showLeaderboard = false,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -53,8 +53,8 @@ class ChallengeProgress extends StatelessWidget {
                       color: AppColors.success,
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: Row(
-                      children: const [
+                    child: const Row(
+                      children: [
                         Icon(
                           Icons.check_circle,
                           color: Colors.white,
@@ -175,7 +175,7 @@ class ChallengeProgress extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
+                    const Text(
                       'Progression',
                       style: TextStyle(
                         fontSize: 12,
@@ -183,8 +183,8 @@ class ChallengeProgress extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      '${userProgress} / ${challenge.targetValue}',
-                      style: TextStyle(
+                      '$userProgress / ${challenge.targetValue}',
+                      style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
                         color: AppColors.textPrimary,

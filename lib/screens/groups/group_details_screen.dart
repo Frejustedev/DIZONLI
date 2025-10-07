@@ -7,8 +7,9 @@ import '../../models/group_model.dart';
 import '../../models/user_model.dart';
 import '../../services/group_service.dart';
 import '../../services/user_service.dart';
-import '../../widgets/group_leaderboard.dart';
+import '../../widgets/group_member_tile.dart';
 import 'edit_group_screen.dart';
+import 'full_leaderboard_screen.dart';
 
 /// Screen displaying group details and leaderboard
 class GroupDetailsScreen extends StatefulWidget {
@@ -235,7 +236,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen>
                   ),
                   _buildStatColumn(
                     icon: Icons.directions_walk,
-                    value: _formatNumber(widget.group.totalSteps),
+                    value: _formatNumber(_calculateTotalSteps()),
                     label: 'Total Pas',
                     color: AppColors.secondary,
                   ),
@@ -336,19 +337,277 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen>
   }
 
   Widget _buildLeaderboardTab() {
+    // Trier les membres par totalSteps
+    final sortedMembers = List<UserModel>.from(_members)
+      ..sort((a, b) => b.totalSteps.compareTo(a.totalSteps));
+    
+    // Top 3
+    final top3 = sortedMembers.take(3).toList();
+
     return RefreshIndicator(
       onRefresh: _loadMembers,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        child: GroupLeaderboard(
-          members: _members,
-          currentUserId: _currentUserId,
-          adminId: widget.group.adminId,
-          isCurrentUserAdmin: widget.group.adminId == _currentUserId,
-          onRemoveMember: (user) => _removeMember(user.uid),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Top 3 du Groupe',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '${sortedMembers.length} membres',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 16),
+
+            // Podium pour top 3
+            if (top3.length >= 3) _buildPodium(top3),
+
+            const SizedBox(height: 32),
+
+            // Bouton "Voir tout le classement"
+            if (sortedMembers.length > 3)
+              Center(
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => FullLeaderboardScreen(
+                          members: _members,
+                          currentUserId: _currentUserId,
+                          adminId: widget.group.adminId,
+                          groupName: widget.group.name,
+                        ),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.leaderboard),
+                  label: const Text('Voir tout le classement'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 32,
+                      vertical: 16,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+
+            const SizedBox(height: 16),
+          ],
         ),
       ),
     );
+  }
+
+  Widget _buildPodium(List<UserModel> top3) {
+    final first = top3[0];
+    final second = top3.length > 1 ? top3[1] : null;
+    final third = top3.length > 2 ? top3[2] : null;
+
+    return Container(
+      height: 200,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // 2ème place
+          if (second != null)
+            Expanded(
+              child: _buildPodiumPlace(
+                user: second,
+                rank: 2,
+                height: 130,
+                color: AppColors.silver,
+              ),
+            ),
+          
+          const SizedBox(width: 8),
+          
+          // 1ère place
+          Expanded(
+            child: _buildPodiumPlace(
+              user: first,
+              rank: 1,
+              height: 170,
+              color: AppColors.gold,
+            ),
+          ),
+          
+          const SizedBox(width: 8),
+          
+          // 3ème place
+          if (third != null)
+            Expanded(
+              child: _buildPodiumPlace(
+                user: third,
+                rank: 3,
+                height: 110,
+                color: AppColors.bronze,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPodiumPlace({
+    required UserModel user,
+    required int rank,
+    required double height,
+    required Color color,
+  }) {
+    final isCurrentUser = user.uid == _currentUserId;
+    
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        // Avatar avec couronne pour 1er
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: color,
+                  width: 3,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: color.withOpacity(0.3),
+                    blurRadius: 10,
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+              child: CircleAvatar(
+                radius: 28,
+                backgroundColor: Colors.white,
+                child: Text(
+                  user.name.isNotEmpty ? user.name[0].toUpperCase() : '?',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                ),
+              ),
+            ),
+            if (rank == 1)
+              const Positioned(
+                top: -10,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Text(
+                    '👑',
+                    style: TextStyle(fontSize: 24),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        
+        const SizedBox(height: 8),
+        
+        // Nom
+        Text(
+          isCurrentUser ? 'Vous' : user.name.split(' ').first,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: AppColors.textPrimary,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+        ),
+        
+        // Pas
+        Text(
+          _formatNumber(user.totalSteps),
+          style: TextStyle(
+            fontSize: 11,
+            color: color,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        
+        const SizedBox(height: 8),
+        
+        // Podium
+        Container(
+          width: double.infinity,
+          height: height,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                color.withOpacity(0.8),
+                color.withOpacity(0.4),
+              ],
+            ),
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(12),
+              topRight: Radius.circular(12),
+            ),
+          ),
+          child: Center(
+            child: Text(
+              _getRankEmoji(rank),
+              style: const TextStyle(fontSize: 40),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _getRankEmoji(int rank) {
+    switch (rank) {
+      case 1:
+        return '🥇';
+      case 2:
+        return '🥈';
+      case 3:
+        return '🥉';
+      default:
+        return '$rank';
+    }
   }
 
   Widget _buildInfoTab(bool isAdmin) {
@@ -389,7 +648,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen>
                   _buildInfoRow(
                     icon: Icons.person,
                     label: 'Administrateur',
-                    value: _getAdminName() ?? 'Inconnu',
+                    value: _getAdminName(),
                   ),
                 ],
               ),
@@ -555,6 +814,13 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen>
       return '${(number / 1000).toStringAsFixed(1)}k';
     }
     return number.toString();
+  }
+
+  int _calculateTotalSteps() {
+    return _members.fold<int>(
+      0,
+      (sum, member) => sum + member.totalSteps,
+    );
   }
 
   String _formatDate(DateTime date) {
