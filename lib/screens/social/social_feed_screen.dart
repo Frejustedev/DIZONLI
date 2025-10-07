@@ -7,6 +7,7 @@ import '../../providers/social_provider.dart';
 import '../../models/post_model.dart';
 import '../../widgets/post_card.dart';
 import '../../widgets/create_post_dialog.dart';
+import '../friends/friends_screen.dart';
 
 class SocialFeedScreen extends StatefulWidget {
   const SocialFeedScreen({super.key});
@@ -57,6 +58,20 @@ class _SocialFeedScreenState extends State<SocialFeedScreen>
         title: const Text(AppStrings.community_feed),
         backgroundColor: AppColors.accent,
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.people),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const FriendsScreen(),
+                ),
+              );
+            },
+            tooltip: 'Gérer mes amis',
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
