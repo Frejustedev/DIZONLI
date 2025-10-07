@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../core/constants/app_colors.dart';
-import '../services/storage_service.dart';
+import '../services/cloudinary_service.dart';
 import '../services/social_service.dart';
 import '../core/utils/image_picker_helper.dart';
 import '../models/post_model.dart';
@@ -24,7 +24,7 @@ class CreatePostDialog extends StatefulWidget {
 
 class _CreatePostDialogState extends State<CreatePostDialog> {
   final TextEditingController _contentController = TextEditingController();
-  final StorageService _storageService = StorageService();
+  final CloudinaryService _cloudinaryService = CloudinaryService();
   final SocialService _socialService = SocialService();
   final ImagePickerHelper _imagePickerHelper = ImagePickerHelper();
   final List<File> _selectedImages = [];
@@ -253,12 +253,11 @@ class _CreatePostDialogState extends State<CreatePostDialog> {
       // Génère l'ID du post
       final postId = const Uuid().v4();
 
-      // Upload les images si présentes
+      // Upload les images vers Cloudinary si présentes
       List<String> imageUrls = [];
       if (_selectedImages.isNotEmpty) {
-        imageUrls = await _storageService.uploadMultiplePostImages(
+        imageUrls = await _cloudinaryService.uploadPostImages(
           widget.userId,
-          postId,
           _selectedImages,
         );
       }

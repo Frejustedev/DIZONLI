@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../core/constants/app_colors.dart';
-import '../services/storage_service.dart';
+import '../services/cloudinary_service.dart';
 import '../services/user_service.dart';
 import '../core/utils/image_picker_helper.dart';
 
@@ -26,7 +26,7 @@ class EditableProfileAvatar extends StatefulWidget {
 }
 
 class _EditableProfileAvatarState extends State<EditableProfileAvatar> {
-  final StorageService _storageService = StorageService();
+  final CloudinaryService _cloudinaryService = CloudinaryService();
   final UserService _userService = UserService();
   final ImagePickerHelper _imagePickerHelper = ImagePickerHelper();
 
@@ -267,8 +267,8 @@ class _EditableProfileAvatarState extends State<EditableProfileAvatar> {
 
       setState(() => _isUploading = true);
 
-      // Upload l'image
-      final photoUrl = await _storageService.uploadProfilePicture(
+      // Upload l'image vers Cloudinary
+      final photoUrl = await _cloudinaryService.uploadProfilePicture(
         widget.userId,
         imageFile,
       );
@@ -315,10 +315,9 @@ class _EditableProfileAvatarState extends State<EditableProfileAvatar> {
     try {
       setState(() => _isUploading = true);
 
-      // Supprime du Storage
-      if (_currentPhotoUrl != null) {
-        await _storageService.deleteImageByUrl(_currentPhotoUrl!);
-      }
+      // Note: Cloudinary ne supporte pas la suppression côté client
+      // L'image reste sur Cloudinary mais n'est plus référencée dans Firestore
+      // Option future: Backend ou nettoyage manuel périodique
 
       // Met à jour l'utilisateur dans Firestore
       await _userService.updateUser(widget.userId, {'photoUrl': null});
