@@ -6,6 +6,7 @@ import '../../providers/user_provider.dart';
 import '../../providers/step_provider.dart';
 import '../../services/step_service.dart';
 import '../../services/user_service.dart';
+import '../../services/friendship_service.dart';
 import '../../models/step_record_model.dart';
 import '../../models/user_model.dart';
 import '../../widgets/progress_ring.dart';
@@ -24,6 +25,7 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   final StepService _stepService = StepService();
   final UserService _userService = UserService();
+  final FriendshipService _friendshipService = FriendshipService();
 
   List<StepRecordModel> _weekData = [];
   List<UserModel> _topFriends = [];
@@ -54,7 +56,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       );
 
       // Charge les top amis
-      final friends = await _userService.getFriends(currentUser.uid);
+      final friends = await _friendshipService.getFriendsProfiles(currentUser.uid);
       friends.sort((a, b) => b.totalSteps.compareTo(a.totalSteps));
 
       setState(() {
