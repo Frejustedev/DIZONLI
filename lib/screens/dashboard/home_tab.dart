@@ -8,7 +8,6 @@ import '../../widgets/step_circle.dart';
 import '../../widgets/stat_card.dart';
 import '../../widgets/weekly_chart.dart';
 import '../../widgets/badge_unlock_dialog.dart';
-import '../../services/fcm_service.dart';
 
 class HomeTab extends StatefulWidget {
   const HomeTab({super.key});
@@ -28,29 +27,10 @@ class _HomeTabState extends State<HomeTab> {
         await context.read<StepProvider>().initialize(
           userId: userProvider.currentUser!.id,
         );
-        
-        // Initialiser les notifications push
-        await _initializeFCM(userProvider.currentUser!.id);
       }
       await _checkBadges();
     });
   }
-  
-  Future<void> _initializeFCM(String userId) async {
-    try {
-      final fcmService = FCMService();
-      await fcmService.initialize(userId);
-      
-      // S'abonner aux topics généraux
-      await fcmService.subscribeToTopic('all_users');
-      await fcmService.subscribeToTopic('user_$userId');
-      
-      debugPrint('✅ FCM initialisé pour l\'utilisateur');
-    } catch (e) {
-      debugPrint('❌ Erreur initialisation FCM: $e');
-    }
-  }
-
   Future<void> _initializeApp() async {
     final badgeProvider = context.read<BadgeProvider>();
     
@@ -245,7 +225,7 @@ class _HomeTabState extends State<HomeTab> {
                   label: 'Mes Groupes',
                   color: AppColors.secondary,
                   onTap: () {
-                    // Navigate to groups
+                    Navigator.pushNamed(context, '/groups');
                   },
                 ),
                 _buildQuickActionCard(
@@ -254,7 +234,7 @@ class _HomeTabState extends State<HomeTab> {
                   label: 'Défis',
                   color: AppColors.accent,
                   onTap: () {
-                    // Navigate to challenges
+                    Navigator.pushNamed(context, '/challenges');
                   },
                 ),
                 _buildQuickActionCard(
@@ -263,7 +243,7 @@ class _HomeTabState extends State<HomeTab> {
                   label: 'Badges',
                   color: Colors.orange,
                   onTap: () {
-                    // Navigate to badges
+                    Navigator.pushNamed(context, '/badges');
                   },
                 ),
                 _buildQuickActionCard(
@@ -272,7 +252,7 @@ class _HomeTabState extends State<HomeTab> {
                   label: 'Social',
                   color: Colors.purple,
                   onTap: () {
-                    // Navigate to social
+                    Navigator.pushNamed(context, '/social');
                   },
                 ),
               ],

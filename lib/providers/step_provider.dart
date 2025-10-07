@@ -32,6 +32,11 @@ class StepProvider with ChangeNotifier {
     
     _currentUserId = userId;
     
+    // Pour le moment, désactiver Google Fit/Health Connect et utiliser uniquement le capteur local
+    // TODO: Réactiver après avoir configuré correctement les permissions Health
+    _useSystemSteps = false;
+    
+    /* 
     // Essayer d'utiliser le système (Google Fit / Health Connect) en priorité
     if (_currentUserId != null && !kIsWeb) {
       try {
@@ -46,12 +51,15 @@ class StepProvider with ChangeNotifier {
         _useSystemSteps = false;
       }
     }
+    */
     
-    // Fallback: utiliser le capteur local si le système n'est pas disponible
-    if (!_useSystemSteps) {
+    // Utiliser le capteur local
+    if (!_useSystemSteps && !kIsWeb) {
+      debugPrint('🚶 Démarrage du capteur de pas local...');
       await _stepService.initialize();
       _startListening();
       _startAutoSave();
+      debugPrint('✅ Capteur de pas local démarré');
     }
     
     // Charger les pas du jour depuis Firestore

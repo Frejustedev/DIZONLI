@@ -128,6 +128,26 @@ class ChallengeModel {
 
   /// Créé depuis Map Firestore
   factory ChallengeModel.fromJson(Map<String, dynamic> json) {
+    // Helper pour convertir Timestamp ou String en DateTime
+    DateTime _parseDate(dynamic value) {
+      if (value == null) return DateTime.now();
+      if (value is Timestamp) return value.toDate();
+      if (value is String) return DateTime.parse(value);
+      return DateTime.now();
+    }
+
+    // Helper pour convertir Map<String, dynamic> en Map<String, int>
+    Map<String, int> _parseProgress(dynamic value) {
+      if (value == null) return {};
+      if (value is Map) {
+        return value.map((key, val) => MapEntry(
+          key.toString(),
+          (val is int) ? val : (val as num).toInt(),
+        ));
+      }
+      return {};
+    }
+
     return ChallengeModel(
       id: json['id'] ?? '',
       title: json['title'] ?? '',
@@ -143,15 +163,13 @@ class ChallengeModel {
       creatorId: json['creatorId'],
       groupId: json['groupId'],
       participantIds: List<String>.from(json['participantIds'] ?? []),
-      targetValue: json['targetValue'] ?? 0,
-      startDate: (json['startDate'] as Timestamp).toDate(),
-      endDate: (json['endDate'] as Timestamp).toDate(),
-      rewardPoints: json['rewardPoints'] ?? 0,
+      targetValue: (json['targetValue'] ?? 0).toInt(),
+      startDate: _parseDate(json['startDate']),
+      endDate: _parseDate(json['endDate']),
+      rewardPoints: (json['rewardPoints'] ?? 0).toInt(),
       rewardBadgeId: json['rewardBadgeId'],
-      progress: Map<String, int>.from(json['progress'] ?? {}),
-      createdAt: json['createdAt'] != null
-          ? (json['createdAt'] as Timestamp).toDate()
-          : DateTime.now(),
+      progress: _parseProgress(json['progress']),
+      createdAt: _parseDate(json['createdAt']),
       isPublic: json['isPublic'] ?? false,
     );
   }

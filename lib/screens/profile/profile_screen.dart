@@ -7,6 +7,7 @@ import '../../providers/user_provider.dart';
 import '../../providers/badge_provider.dart';
 import '../../models/badge_model.dart';
 import '../../services/user_service.dart';
+import '../../widgets/editable_profile_avatar.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -27,6 +28,15 @@ class ProfileScreen extends StatelessWidget {
         title: const Text('Profil'),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () {
+              Navigator.pushNamed(context, '/settings');
+            },
+            tooltip: 'Paramètres',
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -43,12 +53,14 @@ class ProfileScreen extends StatelessWidget {
               ),
               child: Column(
                 children: [
-                  CircleAvatar(
+                  EditableProfileAvatar(
+                    userId: user.id,
+                    photoUrl: user.photoUrl,
                     radius: 50,
-                    backgroundColor: Colors.white,
-                    child: user.photoUrl != null
-                        ? ClipOval(child: Image.network(user.photoUrl!, fit: BoxFit.cover))
-                        : const Icon(Icons.person, size: 50, color: AppColors.primary),
+                    onPhotoUpdated: () {
+                      // Rafraîchir le provider
+                      userProvider.refreshUser();
+                    },
                   ),
                   const SizedBox(height: 16),
                   Text(
@@ -337,15 +349,6 @@ class ProfileScreen extends StatelessWidget {
             subtitle: Text('${user.dailyGoal} pas'),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
             onTap: () => _showEditGoalDialog(context, user),
-          ),
-          const Divider(height: 1),
-          ListTile(
-            leading: const Icon(Icons.people, color: AppColors.secondary),
-            title: const Text('Mes amis'),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () {
-              Navigator.pushNamed(context, '/friends');
-            },
           ),
           const Divider(height: 1),
           ListTile(

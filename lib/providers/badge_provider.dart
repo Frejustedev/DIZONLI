@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import '../models/badge_model.dart';
 import '../services/badge_service.dart';
@@ -56,26 +55,19 @@ class BadgeProvider with ChangeNotifier {
   Future<void> loadAllBadges() async {
     _isLoading = true;
     _error = null;
-    
-    // Use post-frame callback to avoid calling notifyListeners during build
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      notifyListeners();
-    });
+    notifyListeners();
 
     try {
-      _badgeService.streamAllBadges().listen((badges) {
-        _allBadges = badges;
-        _isLoading = false;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          notifyListeners();
-        });
-      });
+      // Charger les badges une seule fois au lieu d'utiliser un stream
+      final badges = await _badgeService.getAllBadges();
+      _allBadges = badges;
+      _isLoading = false;
+      _error = null;
+      notifyListeners();
     } catch (e) {
       _error = e.toString();
       _isLoading = false;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        notifyListeners();
-      });
+      notifyListeners();
     }
   }
 
@@ -83,26 +75,19 @@ class BadgeProvider with ChangeNotifier {
   Future<void> loadUserBadges(String userId) async {
     _isLoading = true;
     _error = null;
-    
-    // Use post-frame callback to avoid calling notifyListeners during build
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      notifyListeners();
-    });
+    notifyListeners();
 
     try {
-      _badgeService.streamUserBadges(userId).listen((badges) {
-        _userBadges = badges;
-        _isLoading = false;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          notifyListeners();
-        });
-      });
+      // Charger les badges de l'utilisateur une seule fois
+      final badges = await _badgeService.getUserBadges(userId);
+      _userBadges = badges;
+      _isLoading = false;
+      _error = null;
+      notifyListeners();
     } catch (e) {
       _error = e.toString();
       _isLoading = false;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        notifyListeners();
-      });
+      notifyListeners();
     }
   }
 

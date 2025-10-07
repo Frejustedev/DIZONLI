@@ -1,63 +1,71 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart' as auth;
 import '../../core/constants/app_colors.dart';
-import '../../core/constants/app_strings.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/step_provider.dart';
-import '../../providers/badge_provider.dart';
-import '../../providers/notification_provider.dart';
-import '../../widgets/step_circle.dart';
+import '../../services/step_service.dart';
+import '../../services/user_service.dart';
+import '../../models/step_record_model.dart';
+import '../../models/user_model.dart';
+import '../../widgets/progress_ring.dart';
+import '../../widgets/weekly_chart.dart';
+import '../../widgets/stats_summary.dart';
+import '../../widgets/mini_leaderboard.dart';
 import '../../widgets/stat_card.dart';
-import '../../widgets/badge_unlock_dialog.dart';
-import '../social/friends_screen.dart';
-import '../notifications/notifications_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({Key? key}) : super(key: key);
+  const DashboardScreen({super.key});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+  final StepService _stepService = StepService();
+  final UserService _userService = UserService();
+
+  List<StepRecordModel> _weekData = [];
+  List<UserModel> _topFriends = [];
+  int _streak = 0;
+  bool _isLoading = true;
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final userProvider = context.read<UserProvider>();
-      if (userProvider.currentUser != null) {
-        await context.read<StepProvider>().initialize(
-          userId: userProvider.currentUser!.id,
-        );
-      }
-      await _checkBadges();
-    });
+    _loadData();
   }
 
-  Future<void> _checkBadges() async {
-    final userProvider = context.read<UserProvider>();
-    final badgeProvider = context.read<BadgeProvider>();
-    
-    if (userProvider.currentUser != null) {
-      // Check and unlock badges
-      await badgeProvider.checkAndUnlockBadges(userProvider.currentUser!.id);
-      
-      // Load unread notifications
-      final notificationProvider = context.read<NotificationProvider>();
-      notificationProvider.loadUnreadNotifications(userProvider.currentUser!.id);
-      
-      // Show dialog for newly unlocked badges
-      if (badgeProvider.newlyUnlockedBadges.isNotEmpty && mounted) {
-        for (final badge in badgeProvider.newlyUnlockedBadges) {
-          await showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (context) => BadgeUnlockDialog(badge: badge),
-          );
-        }
-        // Clear the newly unlocked badges after showing
-        badgeProvider.clearNewlyUnlockedBadges();
-      }
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final currentUser = auth.FirebaseAuth.instance.currentUser;
+      if (currentUser == null) return;
+
+      // Charge les pas de la semaine
+      final weekData = await _stepService.getWeekSteps(currentUser.uid);
+
+      // Charge le streak
+      final user = await _userService.getUser(currentUser.uid);
+      final streak = await _stepService.getStreak(
+        currentUser.uid,
+        user?.dailyGoal ?? 10000,
+      );
+
+      // Charge les top amis
+      final friends = await _userService.getFriends(currentUser.uid);
+      friends.sort((a, b) => b.totalSteps.compareTo(a.totalSteps));
+
+      setState(() {
+        _weekData = weekData;
+        _streak = streak;
+        _topFriends = friends.take(3).toList();
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('Erreur lors du chargement des données: $e');
+      setState(() => _isLoading = false);
     }
   }
 
@@ -73,273 +81,337 @@ class _DashboardScreenState extends State<DashboardScreen> {
       );
     }
 
-    final progress = stepProvider.getProgress(user.dailyGoal);
-
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text('Bonjour, ${user.name}'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        foregroundColor: AppColors.text,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Bonjour, ${user.name.split(' ').first} 👋',
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(
+              _getGreetingMessage(),
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
         actions: [
-          Consumer<NotificationProvider>(
-            builder: (context, notificationProvider, child) {
-              final unreadCount = notificationProvider.unreadCount;
-              return Stack(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.notifications_outlined),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const NotificationsScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                  if (unreadCount > 0)
-                    Positioned(
-                      right: 8,
-                      top: 8,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: AppColors.error,
-                          shape: BoxShape.circle,
-                        ),
-                        constraints: const BoxConstraints(
-                          minWidth: 16,
-                          minHeight: 16,
-                        ),
-                        child: Text(
-                          unreadCount > 9 ? '9+' : '$unreadCount',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ),
-                ],
-              );
+          IconButton(
+            icon: const Icon(Icons.notifications_outlined),
+            onPressed: () {
+              Navigator.pushNamed(context, '/notifications');
             },
           ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),
             onPressed: () {
-              Navigator.pushNamed(context, '/settings');
+              Navigator.pushNamed(context, '/profile');
             },
           ),
         ],
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          await stepProvider.initialize(userId: user.id);
-          await stepProvider.forceSave();
-          await _checkBadges();
+          await Future.wait([
+            stepProvider.initialize(userId: user.id),
+            stepProvider.forceSave(),
+            _loadData(),
+          ]);
         },
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Step Counter Circle
-              StepCircle(
-                steps: stepProvider.steps,
-                goal: user.dailyGoal,
-                progress: progress,
-              ),
-              const SizedBox(height: 24),
-              // Statistics Cards
-              Row(
-                children: [
-                  Expanded(
-                    child: StatCard(
-                      icon: Icons.straighten,
-                      title: AppStrings.distance,
-                      value: '${stepProvider.distance.toStringAsFixed(2)} km',
-                      color: AppColors.secondary,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: StatCard(
-                      icon: Icons.local_fire_department,
-                      title: AppStrings.calories,
-                      value: '${stepProvider.calories} kcal',
-                      color: AppColors.accent,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              // Quick Actions
-              Card(
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16.0),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    ListTile(
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(Icons.group, color: AppColors.primary),
+                    // Progress Ring
+                    Center(
+                      child: ProgressRing(
+                        current: stepProvider.steps,
+                        goal: user.dailyGoal,
+                        size: 220,
+                        strokeWidth: 14,
                       ),
-                      title: const Text(AppStrings.groups),
-                      subtitle: const Text('Rejoindre ou créer des groupes'),
-                      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                      onTap: () {
-                        Navigator.pushNamed(context, '/groups');
-                      },
                     ),
-                    const Divider(height: 1),
-                    ListTile(
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppColors.secondary.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(Icons.emoji_events, color: AppColors.secondary),
-                      ),
-                      title: const Text(AppStrings.challenges),
-                      subtitle: const Text('Participer aux défis'),
-                      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                      onTap: () {
-                        Navigator.pushNamed(context, '/challenges');
-                      },
-                    ),
-                    const Divider(height: 1),
-                    ListTile(
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppColors.accent.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(Icons.people, color: AppColors.accent),
-                      ),
-                      title: const Text(AppStrings.community_feed),
-                      subtitle: const Text('Voir les activités'),
-                      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                      onTap: () {
-                        Navigator.pushNamed(context, '/social');
-                      },
-                    ),
-                    const Divider(height: 1),
-                    ListTile(
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(Icons.person_add, color: AppColors.primary),
-                      ),
-                      title: const Text('Amis'),
-                      subtitle: const Text('Gérer vos amis'),
-                      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const FriendsScreen(),
+                    const SizedBox(height: 24),
+
+                    // Quick Stats Cards
+                    Row(
+                      children: [
+                        Expanded(
+                          child: StatCard(
+                            icon: Icons.straighten,
+                            title: 'Distance',
+                            value: '${stepProvider.distance.toStringAsFixed(2)} km',
+                            color: AppColors.secondary,
                           ),
-                        );
-                      },
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: StatCard(
+                            icon: Icons.local_fire_department,
+                            title: 'Calories',
+                            value: '${stepProvider.calories.toInt()} kcal',
+                            color: AppColors.accent,
+                          ),
+                        ),
+                      ],
                     ),
+                    const SizedBox(height: 16),
+
+                    // Weekly Chart
+                    WeeklyChart(
+                      weekData: _weekData,
+                      dailyGoal: user.dailyGoal,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Stats Summary
+                    StatsSummary(
+                      totalSteps: user.totalSteps,
+                      totalDistance: user.totalDistance.toDouble(),
+                      totalCalories: user.totalCalories.toDouble(),
+                      streak: _streak,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Mini Leaderboard
+                    MiniLeaderboard(
+                      topFriends: _topFriends,
+                      currentUserId: user.uid,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Quick Actions
+                    _buildQuickActions(context),
+                    const SizedBox(height: 16),
+
+                    // Motivational Card
+                    _buildMotivationalCard(stepProvider.steps, user.dailyGoal),
+                    const SizedBox(height: 20),
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
-              // Motivation Card
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [AppColors.primary, AppColors.primaryDark],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      '💪 Conseil du jour',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _getMotivationalMessage(stepProvider.steps, user.dailyGoal),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 0,
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: AppColors.primary,
-        unselectedItemColor: AppColors.textSecondary,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Accueil'),
-          BottomNavigationBarItem(icon: Icon(Icons.group), label: 'Groupes'),
-          BottomNavigationBarItem(icon: Icon(Icons.emoji_events), label: 'Défis'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profil'),
+      bottomNavigationBar: _buildBottomNav(context),
+    );
+  }
+
+  Widget _buildQuickActions(BuildContext context) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.all(16.0),
+            child: Text(
+              'Actions Rapides',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          _buildQuickActionTile(
+            icon: Icons.group,
+            title: 'Groupes',
+            subtitle: 'Rejoindre ou créer des groupes',
+            color: AppColors.primary,
+            onTap: () => Navigator.pushNamed(context, '/groups'),
+          ),
+          const Divider(height: 1),
+          _buildQuickActionTile(
+            icon: Icons.emoji_events,
+            title: 'Défis',
+            subtitle: 'Participer aux défis',
+            color: AppColors.secondary,
+            onTap: () => Navigator.pushNamed(context, '/challenges'),
+          ),
+          const Divider(height: 1),
+          _buildQuickActionTile(
+            icon: Icons.people,
+            title: 'Fil Social',
+            subtitle: 'Voir les activités',
+            color: AppColors.accent,
+            onTap: () => Navigator.pushNamed(context, '/social'),
+          ),
         ],
-        onTap: (index) {
-          switch (index) {
-            case 0:
-              break;
-            case 1:
-              Navigator.pushNamed(context, '/groups');
-              break;
-            case 2:
-              Navigator.pushNamed(context, '/challenges');
-              break;
-            case 3:
-              Navigator.pushNamed(context, '/profile');
-              break;
-          }
-        },
       ),
     );
   }
 
-  String _getMotivationalMessage(int steps, int goal) {
+  Widget _buildQuickActionTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(icon, color: color),
+      ),
+      title: Text(
+        title,
+        style: const TextStyle(fontWeight: FontWeight.w600),
+      ),
+      subtitle: Text(subtitle),
+      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+      onTap: onTap,
+    );
+  }
+
+  Widget _buildMotivationalCard(int steps, int goal) {
     final progress = steps / goal;
+    String emoji, title, message;
+    Color startColor, endColor;
+
     if (progress >= 1.0) {
-      return 'Bravo! Vous avez atteint votre objectif! 🎉';
+      emoji = '🎉';
+      title = 'Objectif Atteint!';
+      message = 'Bravo! Vous avez atteint votre objectif quotidien!';
+      startColor = AppColors.success;
+      endColor = const Color(0xFF66BB6A);
     } else if (progress >= 0.75) {
-      return 'Presque là! Plus que ${goal - steps} pas!';
+      emoji = '💪';
+      title = 'Presque là!';
+      message = 'Plus que ${goal - steps} pas pour atteindre votre objectif!';
+      startColor = AppColors.primary;
+      endColor = AppColors.primaryDark;
     } else if (progress >= 0.5) {
-      return 'Vous êtes à mi-chemin! Continuez! 💪';
+      emoji = '🚶';
+      title = 'À mi-chemin!';
+      message = 'Continuez comme ça, vous êtes sur la bonne voie!';
+      startColor = AppColors.secondary;
+      endColor = AppColors.secondaryDark;
     } else if (progress >= 0.25) {
-      return 'Bon début! Continuez à marcher!';
+      emoji = '👍';
+      title = 'Bon début!';
+      message = 'Chaque pas compte. Continuez à avancer!';
+      startColor = AppColors.accent;
+      endColor = const Color(0xFFFFA726);
     } else {
-      return 'Commencez votre journée active! Chaque pas compte!';
+      emoji = '🌟';
+      title = 'Commençons!';
+      message = 'Une marche de mille kilomètres commence par un pas!';
+      startColor = AppColors.secondary;
+      endColor = AppColors.secondaryLight;
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [startColor, endColor],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: startColor.withOpacity(0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$emoji $title',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            message,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomNav(BuildContext context) {
+    return BottomNavigationBar(
+      currentIndex: 0,
+      type: BottomNavigationBarType.fixed,
+      selectedItemColor: AppColors.primary,
+      unselectedItemColor: AppColors.textSecondary,
+      elevation: 8,
+      items: const [
+        BottomNavigationBarItem(
+          icon: Icon(Icons.home),
+          label: 'Accueil',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.group),
+          label: 'Groupes',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.emoji_events),
+          label: 'Défis',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.person),
+          label: 'Profil',
+        ),
+      ],
+      onTap: (index) {
+        switch (index) {
+          case 0:
+            break;
+          case 1:
+            Navigator.pushNamed(context, '/groups');
+            break;
+          case 2:
+            Navigator.pushNamed(context, '/challenges');
+            break;
+          case 3:
+            Navigator.pushNamed(context, '/profile');
+            break;
+        }
+      },
+    );
+  }
+
+  String _getGreetingMessage() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) {
+      return 'Bonne matinée!';
+    } else if (hour < 18) {
+      return 'Bon après-midi!';
+    } else {
+      return 'Bonne soirée!';
     }
   }
 }
-

@@ -30,6 +30,12 @@ class SocialProvider with ChangeNotifier {
     });
   }
 
+  /// Rafraîchir le feed (force le rechargement)
+  void refreshFeed() {
+    loadPublicPosts();
+    notifyListeners();
+  }
+
   /// Charge les posts des amis
   void loadFriendsPosts(List<String> friendIds) {
     if (friendIds.isEmpty) {

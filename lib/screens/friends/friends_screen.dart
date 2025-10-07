@@ -1,195 +1,260 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
-import '../../providers/user_provider.dart';
+import '../../core/utils/user_helper.dart';
 import '../../services/friendship_service.dart';
 import '../../services/user_service.dart';
-import '../../models/user_model.dart';
+import '../../providers/user_provider.dart';
 import '../../models/friendship_model.dart';
+import '../../models/user_model.dart';
+import 'add_friend_screen.dart';
 
 class FriendsScreen extends StatefulWidget {
   const FriendsScreen({Key? key}) : super(key: key);
-
+  
   @override
   State<FriendsScreen> createState() => _FriendsScreenState();
 }
 
-class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProviderStateMixin {
+class _FriendsScreenState extends State<FriendsScreen> 
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final FriendshipService _friendshipService = FriendshipService();
   final UserService _userService = UserService();
   
-  List<UserModel> _friends = [];
-  List<FriendshipModel> _pendingRequests = [];
-  List<FriendshipModel> _sentRequests = [];
-  bool _isLoading = true;
-
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-    _loadData();
+    _tabController = TabController(length: 2, vsync: this);
   }
-
+  
   @override
   void dispose() {
     _tabController.dispose();
     super.dispose();
   }
-
-  Future<void> _loadData() async {
-    setState(() => _isLoading = true);
-    
-    final userProvider = context.read<UserProvider>();
-    if (userProvider.currentUser == null) return;
-    
-    final userId = userProvider.currentUser!.id;
-
-    try {
-      // Charger les amis
-      final friends = await _userService.getFriends(userId);
-      
-      // Charger les demandes reçues
-      final pending = await _friendshipService.getPendingRequests(userId);
-      
-      // Charger les demandes envoyées
-      final sent = await _friendshipService.getSentRequests(userId);
-
-      setState(() {
-        _friends = friends;
-        _pendingRequests = pending;
-        _sentRequests = sent;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() => _isLoading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e')),
-        );
-      }
-    }
-  }
-
+  
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Amis'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: [
-            Tab(
-              icon: Badge(
-                label: Text('${_friends.length}'),
-                child: const Icon(Icons.people),
-              ),
-              text: 'Mes amis',
-            ),
-            Tab(
-              icon: Badge(
-                label: Text('${_pendingRequests.length}'),
-                isLabelVisible: _pendingRequests.isNotEmpty,
-                child: const Icon(Icons.person_add),
-              ),
-              text: 'Demandes',
-            ),
-            Tab(
-              icon: Badge(
-                label: Text('${_sentRequests.length}'),
-                isLabelVisible: _sentRequests.isNotEmpty,
-                child: const Icon(Icons.send),
-              ),
-              text: 'Envoyées',
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.person_search),
-            onPressed: () => _showSearchDialog(),
-            tooltip: 'Rechercher des amis',
-          ),
-        ],
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : TabBarView(
-              controller: _tabController,
-              children: [
-                _buildFriendsList(),
-                _buildPendingRequestsList(),
-                _buildSentRequestsList(),
-              ],
-            ),
-    );
-  }
-
-  Widget _buildFriendsList() {
-    if (_friends.isEmpty) {
-      return _buildEmptyState(
-        icon: Icons.people_outline,
-        title: 'Aucun ami',
-        subtitle: 'Recherchez des utilisateurs pour les ajouter',
-        action: ElevatedButton.icon(
-          onPressed: _showSearchDialog,
-          icon: const Icon(Icons.person_search),
-          label: const Text('Rechercher des amis'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
-          ),
-        ),
+    final userProvider = context.watch<UserProvider>();
+    final currentUser = userProvider.currentUser;
+    
+    if (currentUser == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
       );
     }
-
-    return RefreshIndicator(
-      onRefresh: _loadData,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: _friends.length,
-        itemBuilder: (context, index) {
-          final friend = _friends[index];
-          return _buildFriendCard(friend);
+    
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Mes Amis'),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(text: 'Amis', icon: Icon(Icons.people)),
+            Tab(text: 'Demandes', icon: Icon(Icons.person_add)),
+          ],
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildFriendsList(currentUser.uid),
+          _buildRequestsList(currentUser.uid),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const AddFriendScreen(),
+            ),
+          );
         },
+        backgroundColor: AppColors.primary,
+        icon: const Icon(Icons.person_add),
+        label: const Text('Ajouter'),
       ),
     );
   }
-
-  Widget _buildFriendCard(UserModel friend) {
+  
+  Widget _buildFriendsList(String userId) {
+    return StreamBuilder<List<String>>(
+      stream: _friendshipService.streamFriends(userId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return _buildEmptyState(
+            icon: Icons.people_outline,
+            title: 'Aucun ami',
+            subtitle: 'Ajoutez des amis pour commencer!',
+          );
+        }
+        
+        final friendIds = snapshot.data!;
+        
+        return RefreshIndicator(
+          onRefresh: () async {
+            // Force le rebuild du stream
+            setState(() {});
+          },
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: friendIds.length,
+            itemBuilder: (context, index) {
+              return FutureBuilder<UserModel?>(
+                future: _userService.getUser(friendIds[index]),
+                builder: (context, userSnapshot) {
+                  if (!userSnapshot.hasData) {
+                    return const Card(
+                      margin: EdgeInsets.only(bottom: 12),
+                      child: ListTile(
+                        leading: CircleAvatar(child: Icon(Icons.person)),
+                        title: Text('Chargement...'),
+                      ),
+                    );
+                  }
+                  
+                  final friend = userSnapshot.data!;
+                  return _buildFriendTile(friend);
+                },
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+  
+  Widget _buildRequestsList(String userId) {
+    return StreamBuilder<List<FriendshipModel>>(
+      stream: _friendshipService.streamPendingRequests(userId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return _buildEmptyState(
+            icon: Icons.inbox,
+            title: 'Aucune demande',
+            subtitle: 'Vous n\'avez pas de demandes d\'amis en attente',
+          );
+        }
+        
+        final requests = snapshot.data!;
+        
+        return RefreshIndicator(
+          onRefresh: () async {
+            setState(() {});
+          },
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: requests.length,
+            itemBuilder: (context, index) {
+              final request = requests[index];
+              final requesterId = request.requesterId;
+              
+              return FutureBuilder<UserModel?>(
+                future: _userService.getUser(requesterId),
+                builder: (context, userSnapshot) {
+                  if (!userSnapshot.hasData) {
+                    return const Card(
+                      margin: EdgeInsets.only(bottom: 12),
+                      child: ListTile(
+                        leading: CircleAvatar(child: Icon(Icons.person)),
+                        title: Text('Chargement...'),
+                      ),
+                    );
+                  }
+                  
+                  final requester = userSnapshot.data!;
+                  return _buildRequestTile(requester, request);
+                },
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+  
+  Widget _buildFriendTile(UserModel friend) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: CircleAvatar(
-          backgroundColor: AppColors.primary,
-          child: Text(
-            friend.name[0].toUpperCase(),
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
+          radius: 28,
+          backgroundColor: AppColors.primary.withOpacity(0.2),
+          backgroundImage: friend.photoURL.isNotEmpty
+              ? NetworkImage(friend.photoURL)
+              : null,
+          child: friend.photoURL.isEmpty
+              ? Text(
+                  friend.firstName[0].toUpperCase(),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
+                    color: AppColors.primary,
+                  ),
+                )
+              : null,
         ),
         title: Text(
-          friend.name,
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          '${friend.firstName} ${friend.lastName}',
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 16,
+          ),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('${friend.totalSteps} pas'),
-            Text(friend.location, style: const TextStyle(fontSize: 12)),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                const Icon(Icons.directions_walk, size: 16, color: AppColors.textSecondary),
+                const SizedBox(width: 4),
+                Text(
+                  '${_formatNumber(friend.totalSteps)} pas',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
-        trailing: PopupMenuButton(
+        trailing: PopupMenuButton<String>(
           icon: const Icon(Icons.more_vert),
+          onSelected: (value) {
+            if (value == 'remove') {
+              _confirmRemoveFriend(friend);
+            } else if (value == 'profile') {
+              // TODO: Navigate to friend profile
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Profil ami - À venir')),
+              );
+            }
+          },
           itemBuilder: (context) => [
             const PopupMenuItem(
-              value: 'view',
+              value: 'profile',
               child: Row(
                 children: [
                   Icon(Icons.person, size: 20),
                   SizedBox(width: 8),
-                  Text('Voir le profil'),
+                  Text('Voir profil'),
                 ],
               ),
             ),
@@ -197,492 +262,229 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
               value: 'remove',
               child: Row(
                 children: [
-                  Icon(Icons.person_remove, size: 20, color: AppColors.error),
+                  Icon(Icons.person_remove, color: Colors.red, size: 20),
                   SizedBox(width: 8),
-                  Text('Retirer', style: TextStyle(color: AppColors.error)),
+                  Text('Retirer ami', style: TextStyle(color: Colors.red)),
                 ],
               ),
             ),
           ],
-          onSelected: (value) {
-            if (value == 'remove') {
-              _confirmRemoveFriend(friend);
-            } else if (value == 'view') {
-              // TODO: Navigate to friend profile
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Profil de ${friend.name}')),
-              );
-            }
-          },
         ),
       ),
     );
   }
-
-  Widget _buildPendingRequestsList() {
-    if (_pendingRequests.isEmpty) {
-      return _buildEmptyState(
-        icon: Icons.inbox_outlined,
-        title: 'Aucune demande',
-        subtitle: 'Vous n\'avez pas de demandes d\'ami en attente',
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: _loadData,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: _pendingRequests.length,
-        itemBuilder: (context, index) {
-          final request = _pendingRequests[index];
-          return _buildPendingRequestCard(request);
-        },
-      ),
-    );
-  }
-
-  Widget _buildPendingRequestCard(FriendshipModel request) {
+  
+  Widget _buildRequestTile(UserModel requester, FriendshipModel friendship) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      child: FutureBuilder<UserModel?>(
-        future: _userService.getUser(request.senderId),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return const ListTile(
-              leading: CircleAvatar(child: CircularProgressIndicator()),
-              title: Text('Chargement...'),
-            );
-          }
-
-          final sender = snapshot.data!;
-          
-          return ListTile(
-            leading: CircleAvatar(
-              backgroundColor: AppColors.primary,
-              child: Text(
-                sender.name[0].toUpperCase(),
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-              ),
-            ),
-            title: Text(
-              sender.name,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            subtitle: Text(sender.location),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.check_circle, color: AppColors.success),
-                  onPressed: () => _acceptRequest(request),
-                  tooltip: 'Accepter',
-                ),
-                IconButton(
-                  icon: const Icon(Icons.cancel, color: AppColors.error),
-                  onPressed: () => _rejectRequest(request),
-                  tooltip: 'Refuser',
-                ),
-              ],
-            ),
-          );
-        },
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
       ),
-    );
-  }
-
-  Widget _buildSentRequestsList() {
-    if (_sentRequests.isEmpty) {
-      return _buildEmptyState(
-        icon: Icons.send_outlined,
-        title: 'Aucune demande envoyée',
-        subtitle: 'Recherchez des utilisateurs pour envoyer des demandes',
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: _loadData,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: _sentRequests.length,
-        itemBuilder: (context, index) {
-          final request = _sentRequests[index];
-          return _buildSentRequestCard(request);
-        },
-      ),
-    );
-  }
-
-  Widget _buildSentRequestCard(FriendshipModel request) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: FutureBuilder<UserModel?>(
-        future: _userService.getUser(request.receiverId),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return const ListTile(
-              leading: CircleAvatar(child: CircularProgressIndicator()),
-              title: Text('Chargement...'),
-            );
-          }
-
-          final receiver = snapshot.data!;
-          
-          return ListTile(
-            leading: CircleAvatar(
-              backgroundColor: Colors.grey,
-              child: Text(
-                receiver.name[0].toUpperCase(),
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-              ),
-            ),
-            title: Text(receiver.name),
-            subtitle: const Text('En attente...', style: TextStyle(fontStyle: FontStyle.italic)),
-            trailing: IconButton(
-              icon: const Icon(Icons.cancel, color: AppColors.error),
-              onPressed: () => _cancelRequest(request),
-              tooltip: 'Annuler',
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildEmptyState({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    Widget? action,
-  }) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: CircleAvatar(
+          radius: 28,
+          backgroundColor: AppColors.secondary.withOpacity(0.2),
+          backgroundImage: requester.photoURL.isNotEmpty
+              ? NetworkImage(requester.photoURL)
+              : null,
+          child: requester.photoURL.isEmpty
+              ? Text(
+                  requester.firstName[0].toUpperCase(),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
+                    color: AppColors.secondary,
+                  ),
+                )
+              : null,
+        ),
+        title: Text(
+          '${requester.firstName} ${requester.lastName}',
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 16,
+          ),
+        ),
+        subtitle: const Text(
+          'Demande d\'ami',
+          style: TextStyle(
+            fontSize: 14,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 80, color: Colors.grey[300]),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
+            IconButton(
+              icon: const Icon(Icons.check_circle, color: Colors.green, size: 28),
+              onPressed: () => _acceptRequest(friendship),
+              tooltip: 'Accepter',
             ),
-            const SizedBox(height: 8),
-            Text(
-              subtitle,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-              ),
+            IconButton(
+              icon: const Icon(Icons.cancel, color: Colors.red, size: 28),
+              onPressed: () => _rejectRequest(friendship),
+              tooltip: 'Refuser',
             ),
-            if (action != null) ...[
-              const SizedBox(height: 24),
-              action,
-            ],
           ],
         ),
       ),
     );
   }
-
-  void _showSearchDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => _SearchFriendsDialog(
-        onRequestSent: () {
-          _loadData();
-          Navigator.pop(context);
-        },
+  
+  Widget _buildEmptyState({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 80, color: Colors.grey[300]),
+            const SizedBox(height: 24),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[700],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
-
-  Future<void> _acceptRequest(FriendshipModel request) async {
-    try {
-      await _friendshipService.acceptFriendRequest(request.id);
-      await _loadData();
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ Ami ajouté !'),
-            backgroundColor: AppColors.success,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e')),
-        );
-      }
-    }
-  }
-
-  Future<void> _rejectRequest(FriendshipModel request) async {
-    try {
-      await _friendshipService.rejectFriendRequest(request.id);
-      await _loadData();
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Demande refusée'),
-            backgroundColor: AppColors.textSecondary,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e')),
-        );
-      }
-    }
-  }
-
-  Future<void> _cancelRequest(FriendshipModel request) async {
-    try {
-      await _friendshipService.cancelFriendRequest(request.id);
-      await _loadData();
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Demande annulée'),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e')),
-        );
-      }
-    }
-  }
-
-  Future<void> _confirmRemoveFriend(UserModel friend) async {
-    final confirmed = await showDialog<bool>(
+  
+  void _confirmRemoveFriend(UserModel friend) {
+    showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Retirer cet ami ?'),
-        content: Text('Voulez-vous vraiment retirer ${friend.name} de vos amis ?'),
+        title: const Text('Retirer ami'),
+        content: Text(
+          'Êtes-vous sûr de vouloir retirer ${friend.firstName} ${friend.lastName} de vos amis?',
+        ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop(context),
             child: const Text('Annuler'),
           ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _removeFriend(friend);
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('Retirer'),
           ),
         ],
       ),
     );
-
-    if (confirmed == true) {
-      try {
-        final userProvider = context.read<UserProvider>();
-        await _friendshipService.removeFriend(
-          userProvider.currentUser!.id,
-          friend.id,
-        );
-        await _loadData();
-        
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('${friend.name} retiré de vos amis'),
-            ),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Erreur: $e')),
-          );
-        }
-      }
-    }
   }
-}
-
-// Dialog de recherche d'amis
-class _SearchFriendsDialog extends StatefulWidget {
-  final VoidCallback onRequestSent;
-
-  const _SearchFriendsDialog({required this.onRequestSent});
-
-  @override
-  State<_SearchFriendsDialog> createState() => _SearchFriendsDialogState();
-}
-
-class _SearchFriendsDialogState extends State<_SearchFriendsDialog> {
-  final TextEditingController _searchController = TextEditingController();
-  final UserService _userService = UserService();
-  final FriendshipService _friendshipService = FriendshipService();
   
-  List<UserModel> _searchResults = [];
-  bool _isSearching = false;
-  bool _hasSearched = false;
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _search() async {
-    final query = _searchController.text.trim();
-    if (query.isEmpty) return;
-
-    setState(() {
-      _isSearching = true;
-      _hasSearched = true;
-    });
-
+  Future<void> _acceptRequest(FriendshipModel friendship) async {
+    final userProvider = context.read<UserProvider>();
+    final currentUserId = userProvider.currentUser?.uid;
+    
+    if (currentUserId == null) return;
+    
     try {
-      final results = await _userService.searchUsersByEmail(query);
+      // Détermine l'ID de l'ami (l'autre personne dans la relation)
+      final friendId = friendship.userId1 == currentUserId 
+          ? friendship.userId2 
+          : friendship.userId1;
       
-      // Filtrer l'utilisateur actuel
-      final currentUser = context.read<UserProvider>().currentUser;
-      final filtered = results.where((user) => user.id != currentUser?.id).toList();
-
-      setState(() {
-        _searchResults = filtered;
-        _isSearching = false;
-      });
-    } catch (e) {
-      setState(() => _isSearching = false);
+      await _friendshipService.acceptFriendRequest(currentUserId, friendId);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e')),
-        );
-      }
-    }
-  }
-
-  Future<void> _sendFriendRequest(UserModel user) async {
-    try {
-      final currentUser = context.read<UserProvider>().currentUser!;
-      await _friendshipService.sendFriendRequest(currentUser.id, user.id);
-      
-      widget.onRequestSent();
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('✅ Demande envoyée à ${user.name}'),
-            backgroundColor: AppColors.success,
+          const SnackBar(
+            content: Text('✅ Demande acceptée!'),
+            backgroundColor: Colors.green,
           ),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e')),
+          SnackBar(
+            content: Text('Erreur: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
   }
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Rechercher des amis',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Email de l\'utilisateur',
-                prefixIcon: const Icon(Icons.email),
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.search),
-                  onPressed: _search,
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              onSubmitted: (_) => _search(),
-            ),
-            const SizedBox(height: 16),
-            if (_isSearching)
-              const Center(child: CircularProgressIndicator())
-            else if (_hasSearched && _searchResults.isEmpty)
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(20),
-                  child: Text(
-                    'Aucun utilisateur trouvé',
-                    style: TextStyle(color: AppColors.textSecondary),
-                  ),
-                ),
-              )
-            else if (_searchResults.isNotEmpty)
-              SizedBox(
-                height: 300,
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: _searchResults.length,
-                  itemBuilder: (context, index) {
-                    final user = _searchResults[index];
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: AppColors.primary,
-                          child: Text(
-                            user.name[0].toUpperCase(),
-                            style: const TextStyle(color: Colors.white),
-                          ),
-                        ),
-                        title: Text(user.name),
-                        subtitle: Text(user.email),
-                        trailing: ElevatedButton.icon(
-                          onPressed: () => _sendFriendRequest(user),
-                          icon: const Icon(Icons.person_add, size: 18),
-                          label: const Text('Ajouter'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: Colors.white,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            const SizedBox(height: 16),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Fermer'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+  
+  Future<void> _rejectRequest(FriendshipModel friendship) async {
+    try {
+      await _friendshipService.deleteFriendship(friendship.id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Demande refusée'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+  
+  Future<void> _removeFriend(UserModel friend) async {
+    final userProvider = context.read<UserProvider>();
+    final currentUserId = userProvider.currentUser?.uid;
+    
+    if (currentUserId == null) return;
+    
+    try {
+      await _friendshipService.removeFriend(currentUserId, friend.uid);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${friend.firstName} retiré de vos amis'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+  
+  String _formatNumber(int number) {
+    if (number >= 1000000) {
+      return '${(number / 1000000).toStringAsFixed(1)}M';
+    } else if (number >= 1000) {
+      return '${(number / 1000).toStringAsFixed(1)}k';
+    }
+    return number.toString();
   }
 }

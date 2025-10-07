@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class StepRecordModel {
   final String id;
   final String userId;
@@ -18,14 +20,22 @@ class StepRecordModel {
   });
 
   factory StepRecordModel.fromJson(Map<String, dynamic> json) {
+    // Fonction helper pour convertir Timestamp ou String en DateTime
+    DateTime _parseDate(dynamic value) {
+      if (value == null) return DateTime.now();
+      if (value is Timestamp) return value.toDate();
+      if (value is String) return DateTime.parse(value);
+      return DateTime.now();
+    }
+
     return StepRecordModel(
       id: json['id'] ?? '',
       userId: json['userId'] ?? '',
-      steps: json['steps'] ?? 0,
+      steps: (json['steps'] ?? 0).toInt(),
       distance: (json['distance'] ?? 0).toDouble(),
-      calories: json['calories'] ?? 0,
-      date: DateTime.parse(json['date'] ?? DateTime.now().toIso8601String()),
-      timestamp: DateTime.parse(json['timestamp'] ?? DateTime.now().toIso8601String()),
+      calories: (json['calories'] ?? 0).toInt(),
+      date: _parseDate(json['date']),
+      timestamp: _parseDate(json['timestamp'] ?? json['updatedAt']),
     );
   }
 

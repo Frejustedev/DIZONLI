@@ -14,7 +14,6 @@ import 'providers/social_provider.dart';
 import 'providers/notification_provider.dart';
 import 'providers/analytics_provider.dart';
 import 'screens/splash_screen.dart';
-import 'services/fcm_service.dart';
 
 // Handler pour les notifications en arrière-plan
 @pragma('vm:entry-point')

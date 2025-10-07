@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:share_plus/share_plus.dart';
 import 'dart:math';
 import '../../core/constants/app_colors.dart';
 import '../../models/group_model.dart';
@@ -7,7 +8,7 @@ import '../../services/group_service.dart';
 
 /// Screen for creating a new group
 class CreateGroupScreen extends StatefulWidget {
-  const CreateGroupScreen({Key? key}) : super(key: key);
+  const CreateGroupScreen({super.key});
 
   @override
   State<CreateGroupScreen> createState() => _CreateGroupScreenState();
@@ -144,7 +145,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                       _isPrivate = value;
                     });
                   },
-                  activeColor: AppColors.primary,
+                  activeThumbColor: AppColors.primary,
                   secondary: Icon(
                     _isPrivate ? Icons.lock : Icons.public,
                     color: _isPrivate ? AppColors.primary : AppColors.secondary,
@@ -164,26 +165,26 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                     color: AppColors.primary.withOpacity(0.3),
                   ),
                 ),
-                child: Row(
+                child: const Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.info_outline,
                       color: AppColors.primary,
                     ),
-                    const SizedBox(width: 12),
+                    SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'Code d\'invitation',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               color: AppColors.primary,
                             ),
                           ),
-                          const SizedBox(height: 4),
-                          const Text(
+                          SizedBox(height: 4),
+                          Text(
                             'Un code unique sera généré pour inviter des membres',
                             style: TextStyle(
                               fontSize: 12,
@@ -287,8 +288,8 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
       await _groupService.createGroup(group);
 
       if (mounted) {
-        // Show success dialog with invite code
-        await _showSuccessDialog(inviteCode);
+        // Show success dialog with group
+        await _showSuccessDialog(group);
         Navigator.of(context).pop(true);
       }
     } catch (e) {
@@ -316,20 +317,20 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
         .join();
   }
 
-  Future<void> _showSuccessDialog(String inviteCode) async {
+  Future<void> _showSuccessDialog(GroupModel group) async {
     return showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: Row(
+        title: const Row(
           children: [
-            const Icon(
+            Icon(
               Icons.check_circle,
               color: AppColors.success,
               size: 28,
             ),
-            const SizedBox(width: 12),
-            const Text('Groupe Créé!'),
+            SizedBox(width: 12),
+            Text('Groupe Créé!'),
           ],
         ),
         content: Column(
@@ -362,7 +363,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
               ),
               child: Center(
                 child: Text(
-                  inviteCode,
+                  group.inviteCode ?? '',
                   style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -385,8 +386,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
         actions: [
           TextButton(
             onPressed: () {
-              // TODO: Implement share functionality
-              Navigator.of(context).pop();
+              _shareInviteCode(context, group.inviteCode ?? '', group.name);
             },
             child: const Text('Partager'),
           ),
@@ -400,6 +400,34 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
         ],
       ),
     );
+  }
+  
+  /// Partage le code d'invitation du groupe
+  static void _shareInviteCode(BuildContext context, String inviteCode, String groupName) {
+    try {
+      final message = '''
+🎉 Rejoins mon groupe "$groupName" sur DIZONLI!
+
+📱 Code d'invitation: $inviteCode
+
+DIZONLI est une application de suivi d'activité physique et de défis sportifs.
+Télécharge l'app et utilise ce code pour nous rejoindre!
+
+🚶 Marchons ensemble vers une meilleure santé!
+''';
+
+      Share.share(
+        message,
+        subject: 'Invitation groupe DIZONLI - $groupName',
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur lors du partage: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 }
 

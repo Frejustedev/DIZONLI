@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 enum GroupType {
   friends,
   community,
@@ -35,6 +37,14 @@ class GroupModel {
   });
 
   factory GroupModel.fromJson(Map<String, dynamic> json) {
+    // Helper pour convertir Timestamp ou String en DateTime
+    DateTime _parseDate(dynamic value) {
+      if (value == null) return DateTime.now();
+      if (value is Timestamp) return value.toDate();
+      if (value is String) return DateTime.parse(value);
+      return DateTime.now();
+    }
+
     return GroupModel(
       id: json['id'] ?? '',
       name: json['name'] ?? '',
@@ -46,8 +56,8 @@ class GroupModel {
       ),
       adminId: json['adminId'] ?? '',
       memberIds: List<String>.from(json['memberIds'] ?? []),
-      totalSteps: json['totalSteps'] ?? 0,
-      createdAt: DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
+      totalSteps: (json['totalSteps'] ?? 0).toInt(),
+      createdAt: _parseDate(json['createdAt']),
       inviteCode: json['inviteCode'],
       isPrivate: json['isPrivate'] ?? false,
     );

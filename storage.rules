@@ -1,0 +1,198 @@
+rules_version = '2';
+
+// Règles de sécurité Firebase Storage pour DIZONLI
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // ========================================
+    // FONCTIONS HELPER
+    // ========================================
+    
+    // Vérifie si l'utilisateur est authentifié
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Vérifie si l'utilisateur est propriétaire du contenu
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Vérifie la taille du fichier (max 5MB)
+    function isValidSize() {
+      return request.resource.size <= 5 * 1024 * 1024;
+    }
+    
+    // Vérifie le type de fichier (images uniquement)
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+    
+    // Vérifie que le fichier est une image valide et de taille acceptable
+    function isValidImage() {
+      return isImage() && isValidSize();
+    }
+    
+    
+    // ========================================
+    // PHOTOS DE PROFIL
+    // ========================================
+    
+    // Règles pour les photos de profil des utilisateurs
+    // Path: /users/{userId}/profile/{imageId}
+    match /users/{userId}/profile/{imageId} {
+      // Lecture : Tout le monde peut voir les photos de profil
+      allow read: if true;
+      
+      // Écriture : Seul le propriétaire peut modifier sa photo de profil
+      allow write: if isOwner(userId) && isValidImage();
+      
+      // Suppression : Seul le propriétaire peut supprimer sa photo
+      allow delete: if isOwner(userId);
+    }
+    
+    
+    // ========================================
+    // IMAGES DE POSTS SOCIAUX
+    // ========================================
+    
+    // Règles pour les images des posts sociaux
+    // Path: /posts/{userId}/{postId}/{imageId}
+    match /posts/{userId}/{postId}/{imageId} {
+      // Lecture : Tout utilisateur authentifié peut voir les posts
+      allow read: if isAuthenticated();
+      
+      // Écriture : Seul le propriétaire peut uploader des images de posts
+      allow write: if isOwner(userId) && isValidImage();
+      
+      // Suppression : Seul le propriétaire peut supprimer ses images
+      allow delete: if isOwner(userId);
+    }
+    
+    
+    // ========================================
+    // IMAGES DE GROUPES
+    // ========================================
+    
+    // Règles pour les images des groupes
+    // Path: /groups/{groupId}/{imageId}
+    match /groups/{groupId}/{imageId} {
+      // Lecture : Tout utilisateur authentifié peut voir les images de groupes
+      allow read: if isAuthenticated();
+      
+      // Écriture : Les membres du groupe peuvent uploader (à vérifier via Firestore)
+      // Note: Pour une sécurité maximale, vérifier l'appartenance au groupe via Firestore
+      allow write: if isAuthenticated() && isValidImage();
+      
+      // Suppression : Les admins du groupe peuvent supprimer (à gérer côté app)
+      allow delete: if isAuthenticated();
+    }
+    
+    
+    // ========================================
+    // IMAGES DE BADGES
+    // ========================================
+    
+    // Règles pour les images des badges (lecture seule publique)
+    // Path: /badges/{badgeId}
+    match /badges/{badgeId} {
+      // Lecture : Tout le monde peut voir les badges
+      allow read: if true;
+      
+      // Écriture : Aucun upload via l'app (gestion admin uniquement)
+      allow write: if false;
+      
+      // Suppression : Aucune suppression via l'app
+      allow delete: if false;
+    }
+    
+    
+    // ========================================
+    // IMAGES DE DÉFIS
+    // ========================================
+    
+    // Règles pour les images des défis
+    // Path: /challenges/{challengeId}/{imageId}
+    match /challenges/{challengeId}/{imageId} {
+      // Lecture : Tout utilisateur authentifié peut voir les défis
+      allow read: if isAuthenticated();
+      
+      // Écriture : Les utilisateurs authentifiés peuvent créer des défis avec images
+      allow write: if isAuthenticated() && isValidImage();
+      
+      // Suppression : Seul le créateur peut supprimer (à gérer côté app)
+      allow delete: if isAuthenticated();
+    }
+    
+    
+    // ========================================
+    // DOSSIER TEMPORAIRE
+    // ========================================
+    
+    // Règles pour les fichiers temporaires (ex: avatars temporaires avant validation)
+    // Path: /temp/{userId}/{fileId}
+    match /temp/{userId}/{fileId} {
+      // Lecture : Seul le propriétaire
+      allow read: if isOwner(userId);
+      
+      // Écriture : Seul le propriétaire, images valides
+      allow write: if isOwner(userId) && isValidImage();
+      
+      // Suppression : Seul le propriétaire
+      allow delete: if isOwner(userId);
+      
+      // TTL: Les fichiers dans /temp doivent être nettoyés régulièrement
+      // (à implémenter avec Cloud Functions)
+    }
+    
+    
+    // ========================================
+    // RÈGLE PAR DÉFAUT
+    // ========================================
+    
+    // Bloque tout accès non spécifié
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
+// ========================================
+// NOTES D'IMPLÉMENTATION
+// ========================================
+//
+// 1. DÉPLOIEMENT:
+//    firebase deploy --only storage
+//
+// 2. TAILLES DE FICHIERS:
+//    - Photos de profil: max 5MB
+//    - Images de posts: max 5MB
+//    - Images de groupes: max 5MB
+//
+// 3. FORMATS ACCEPTÉS:
+//    - image/jpeg
+//    - image/png
+//    - image/gif
+//    - image/webp
+//
+// 4. SÉCURITÉ ADDITIONNELLE:
+//    - Vérifier l'appartenance aux groupes via Firestore Security Rules
+//    - Implémenter des Cloud Functions pour nettoyer les fichiers orphelins
+//    - Ajouter un système de modération pour les images inappropriées
+//
+// 5. OPTIMISATIONS:
+//    - Générer des thumbnails avec Cloud Functions
+//    - Compresser les images avant upload (côté client)
+//    - Utiliser le CDN Firebase pour le caching
+//
+// 6. MONITORING:
+//    - Surveiller l'utilisation du stockage
+//    - Logger les tentatives d'accès non autorisées
+//    - Mettre en place des alertes pour les uploads suspects
+//
+// 7. MAINTENANCE:
+//    - Nettoyage automatique des fichiers temporaires (>24h)
+//    - Suppression des images des comptes supprimés
+//    - Archivage des anciennes images
+//
+// ========================================

@@ -57,6 +57,16 @@
 	<!-- Permission for Location (optional) -->
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Cette application utilise votre position pour identifier votre quartier ou ville</string>
+	
+	<!-- Permission for Camera -->
+	<key>NSCameraUsageDescription</key>
+	<string>Cette application a besoin d'accéder à votre caméra pour prendre des photos de profil et partager des images</string>
+	
+	<!-- Permission for Photo Library -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Cette application a besoin d'accéder à vos photos pour sélectionner des images à partager</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Cette application souhaite sauvegarder des photos dans votre galerie</string>
 </dict>
 </plist>
 

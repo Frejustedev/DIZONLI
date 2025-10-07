@@ -45,9 +45,13 @@ class StepService {
 
       // Met à jour les stats totales de l'utilisateur
       if (existing == null || existing['steps'] < steps) {
-        final incrementSteps = existing == null ? steps : steps - (existing['steps'] as int);
-        final incrementDistance = existing == null ? distance : distance - (existing['distance'] as double);
-        final incrementCalories = existing == null ? calories : calories - (existing['calories'] as double);
+        final existingSteps = existing?['steps'];
+        final existingDistance = existing?['distance'];
+        final existingCalories = existing?['calories'];
+        
+        final incrementSteps = existing == null ? steps : steps - ((existingSteps is int) ? existingSteps : (existingSteps as num).toInt());
+        final incrementDistance = existing == null ? distance : distance - ((existingDistance is double) ? existingDistance : (existingDistance as num).toDouble());
+        final incrementCalories = existing == null ? calories : calories - ((existingCalories is double) ? existingCalories : (existingCalories as num).toDouble());
 
         await _userService.updateTotalStats(
           userId,
@@ -150,7 +154,8 @@ class StepService {
 
       int total = 0;
       for (var doc in snapshot.docs) {
-        total += (doc.data()['steps'] as int);
+        final steps = doc.data()['steps'];
+        total += (steps is int) ? steps : (steps as num).toInt();
       }
 
       return total;

@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/badge_model.dart';
 import 'firestore_service.dart';
 import 'user_service.dart';
@@ -9,7 +8,21 @@ class BadgeService {
   final UserService _userService = UserService();
   static const String _collection = 'badges';
 
-  /// Récupère tous les badges disponibles
+  /// Récupère tous les badges disponibles (une seule fois)
+  Future<List<BadgeModel>> getAllBadges() async {
+    try {
+      final snapshot = await _firestoreService.getCollection(_collection);
+      final badges = snapshot.docs
+          .map((doc) => BadgeModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+          .toList()
+        ..sort((a, b) => a.name.compareTo(b.name));
+      return badges;
+    } catch (e) {
+      throw Exception('Erreur lors de la récupération des badges: $e');
+    }
+  }
+
+  /// Récupère tous les badges disponibles (stream)
   Stream<List<BadgeModel>> streamAllBadges() {
     return _firestoreService.streamCollection(_collection).map((snapshot) {
       return snapshot.docs
@@ -32,7 +45,25 @@ class BadgeService {
     }
   }
 
-  /// Récupère les badges d'un utilisateur
+  /// Récupère les badges d'un utilisateur (une seule fois)
+  Future<List<BadgeModel>> getUserBadges(String userId) async {
+    try {
+      final user = await _userService.getUser(userId);
+      if (user == null || user.badges.isEmpty) return <BadgeModel>[];
+      
+      // Récupère tous les badges de l'utilisateur
+      final badges = <BadgeModel>[];
+      for (final badgeId in user.badges) {
+        final badge = await getBadge(badgeId);
+        if (badge != null) badges.add(badge);
+      }
+      return badges;
+    } catch (e) {
+      throw Exception('Erreur lors de la récupération des badges utilisateur: $e');
+    }
+  }
+
+  /// Récupère les badges d'un utilisateur (stream)
   Stream<List<BadgeModel>> streamUserBadges(String userId) {
     return _userService.streamUser(userId).asyncMap((user) async {
       if (user == null || user.badges.isEmpty) return <BadgeModel>[];

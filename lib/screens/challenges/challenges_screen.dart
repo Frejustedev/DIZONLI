@@ -6,7 +6,6 @@ import '../../models/challenge_model.dart';
 import '../../services/challenge_service.dart';
 import '../../providers/user_provider.dart';
 import '../../widgets/challenge_card.dart';
-import 'challenge_detail_screen.dart';
 import 'package:intl/intl.dart';
 
 class ChallengesScreen extends StatefulWidget {
@@ -175,15 +174,31 @@ class _ChallengesScreenState extends State<ChallengesScreen>
   }
 
   void _showChallengeDetails(ChallengeModel challenge, String userId) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ChallengeDetailScreen(challenge: challenge),
+    // Afficher les détails du défi dans un dialog simple
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(challenge.title),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(challenge.description),
+            const SizedBox(height: 16),
+            Text('Objectif: ${challenge.targetValue} ${challenge.type == ChallengeType.steps ? 'pas' : 'km'}'),
+            Text('Participants: ${challenge.participantIds.length}'),
+            Text('Début: ${DateFormat('dd/MM/yyyy').format(challenge.startDate)}'),
+            Text('Fin: ${DateFormat('dd/MM/yyyy').format(challenge.endDate)}'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Fermer'),
+          ),
+        ],
       ),
-    ).then((_) {
-      // Rafraîchir la liste quand on revient
-      setState(() {});
-    });
+    );
   }
 
   void _showCreateChallengeDialog(String userId) {

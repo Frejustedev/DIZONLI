@@ -6,9 +6,10 @@ import '../../providers/user_provider.dart';
 import '../../providers/social_provider.dart';
 import '../../models/post_model.dart';
 import '../../widgets/post_card.dart';
+import '../../widgets/create_post_dialog.dart';
 
 class SocialFeedScreen extends StatefulWidget {
-  const SocialFeedScreen({Key? key}) : super(key: key);
+  const SocialFeedScreen({super.key});
 
   @override
   State<SocialFeedScreen> createState() => _SocialFeedScreenState();
@@ -317,105 +318,15 @@ class _SocialFeedScreenState extends State<SocialFeedScreen>
   }
 
   void _showCreatePostDialog(currentUser) {
-    final TextEditingController contentController = TextEditingController();
-    PostVisibility selectedVisibility = PostVisibility.public;
-
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Créer un post'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: contentController,
-                decoration: const InputDecoration(
-                  hintText: 'Quoi de neuf ?',
-                  border: OutlineInputBorder(),
-                ),
-                maxLines: 4,
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<PostVisibility>(
-                value: selectedVisibility,
-                decoration: const InputDecoration(
-                  labelText: 'Visibilité',
-                  border: OutlineInputBorder(),
-                ),
-                items: const [
-                  DropdownMenuItem(
-                    value: PostVisibility.public,
-                    child: Row(
-                      children: [
-                        Icon(Icons.public, size: 18),
-                        SizedBox(width: 8),
-                        Text('Public'),
-                      ],
-                    ),
-                  ),
-                  DropdownMenuItem(
-                    value: PostVisibility.friends,
-                    child: Row(
-                      children: [
-                        Icon(Icons.people, size: 18),
-                        SizedBox(width: 8),
-                        Text('Amis uniquement'),
-                      ],
-                    ),
-                  ),
-                  DropdownMenuItem(
-                    value: PostVisibility.private,
-                    child: Row(
-                      children: [
-                        Icon(Icons.lock, size: 18),
-                        SizedBox(width: 8),
-                        Text('Privé'),
-                      ],
-                    ),
-                  ),
-                ],
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() => selectedVisibility = value);
-                  }
-                },
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Annuler'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (contentController.text.isNotEmpty) {
-                  final socialProvider = context.read<SocialProvider>();
-                  await socialProvider.createPost(
-                    userId: currentUser.id,
-                    userName: currentUser.name,
-                    userPhotoURL: currentUser.photoUrl,
-                    type: PostType.custom,
-                    content: contentController.text,
-                    visibility: selectedVisibility,
-                  );
-                  if (context.mounted) {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('✅ Post publié avec succès !'),
-                        backgroundColor: AppColors.success,
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
-                  }
-                }
-              },
-              child: const Text('Publier'),
-            ),
-          ],
-        ),
+      builder: (context) => CreatePostDialog(
+        userId: currentUser.id,
+        onPostCreated: () {
+          // Rafraîchir le feed
+          final socialProvider = context.read<SocialProvider>();
+          socialProvider.refreshFeed();
+        },
       ),
     );
   }

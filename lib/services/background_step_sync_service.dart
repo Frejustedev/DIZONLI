@@ -27,7 +27,7 @@ class BackgroundStepSyncService {
     final initialized = await _healthSync.initialize(userId);
     if (!initialized) {
       debugPrint('❌ Impossible d\'initialiser Health Sync');
-      return;
+      throw Exception('Health Sync initialization failed');
     }
 
     _isRunning = true;

@@ -226,5 +226,39 @@ class UserService {
       throw Exception('Erreur lors de la récupération du classement: $e');
     }
   }
+
+  /// Recherche d'utilisateurs par nom
+  Future<List<UserModel>> searchUsersByName(String query) async {
+    try {
+      if (query.trim().isEmpty) {
+        return [];
+      }
+      
+      final queryLower = query.toLowerCase().trim();
+      
+      // Recherche par nom (case insensitive approximation)
+      final snapshot = await _firestore
+          .collection(_collection)
+          .where('name', isGreaterThanOrEqualTo: query)
+          .where('name', isLessThan: '${query}z')
+          .limit(50)
+          .get();
+
+      final users = snapshot.docs
+          .map((doc) => UserModel.fromJson(doc.data()))
+          .toList();
+
+      // Filtre côté client pour un matching plus précis
+      final filteredUsers = users.where((user) {
+        final nameLower = user.name.toLowerCase();
+        final emailLower = user.email.toLowerCase();
+        return nameLower.contains(queryLower) || emailLower.contains(queryLower);
+      }).toList();
+
+      return filteredUsers;
+    } catch (e) {
+      throw Exception('Erreur lors de la recherche d\'utilisateurs: $e');
+    }
+  }
 }
 

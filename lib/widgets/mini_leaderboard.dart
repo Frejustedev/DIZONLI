@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../core/constants/app_colors.dart';
+import '../core/utils/user_helper.dart';
 import '../models/user_model.dart';
+import '../screens/friends/friends_screen.dart';
 
 /// Widget de mini classement des amis
 class MiniLeaderboard extends StatelessWidget {
@@ -8,10 +10,10 @@ class MiniLeaderboard extends StatelessWidget {
   final String currentUserId;
 
   const MiniLeaderboard({
-    Key? key,
+    super.key,
     required this.topFriends,
     required this.currentUserId,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -51,7 +53,12 @@ class MiniLeaderboard extends StatelessWidget {
               const SizedBox(height: 16),
               ElevatedButton.icon(
                 onPressed: () {
-                  // TODO: Navigate to add friends
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const FriendsScreen(),
+                    ),
+                  );
                 },
                 icon: const Icon(Icons.person_add),
                 label: const Text('Ajouter des amis'),
@@ -91,7 +98,12 @@ class MiniLeaderboard extends StatelessWidget {
                 ),
                 TextButton(
                   onPressed: () {
-                    // TODO: Navigate to full leaderboard
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const FriendsScreen(),
+                      ),
+                    );
                   },
                   child: const Text('Voir tout'),
                 ),

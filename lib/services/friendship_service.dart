@@ -230,7 +230,7 @@ class FriendshipService {
       final snapshot = await _firestore
           .collection('users')
           .where('name', isGreaterThanOrEqualTo: query)
-          .where('name', isLessThan: query + 'z')
+          .where('name', isLessThan: '${query}z')
           .limit(20)
           .get();
 
@@ -260,6 +260,46 @@ class FriendshipService {
       return friendship?.status;
     } catch (e) {
       throw Exception('Erreur lors de la vérification du statut: $e');
+    }
+  }
+
+  /// Stream des IDs d'amis acceptés pour un utilisateur
+  Stream<List<String>> streamFriends(String userId) {
+    return _firestore
+        .collection(_collection)
+        .where('status', isEqualTo: 'accepted')
+        .snapshots()
+        .map((snapshot) {
+      final friendIds = <String>[];
+      for (final doc in snapshot.docs) {
+        final friendship = FriendshipModel.fromMap(doc.data(), doc.id);
+        if (friendship.userId1 == userId) {
+          friendIds.add(friendship.userId2);
+        } else if (friendship.userId2 == userId) {
+          friendIds.add(friendship.userId1);
+        }
+      }
+      return friendIds;
+    });
+  }
+
+  /// Supprime une amitié par son ID
+  Future<void> deleteFriendship(String friendshipId) async {
+    try {
+      await _firestoreService.deleteDocument(_collection, friendshipId);
+    } catch (e) {
+      throw Exception('Erreur lors de la suppression de l\'amitié: $e');
+    }
+  }
+
+  /// Vérifie s'il y a une demande d'ami en attente entre deux utilisateurs
+  Future<bool> hasPendingRequest(String userId1, String userId2) async {
+    try {
+      final friendshipId = FriendshipModel.generateId(userId1, userId2);
+      final friendship = await _getFriendship(friendshipId);
+      return friendship != null && friendship.status == FriendshipStatus.pending;
+    } catch (e) {
+      return false;
     }
   }
 }

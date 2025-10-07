@@ -1,21 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../core/constants/app_colors.dart';
 import '../../models/group_model.dart';
 import '../../models/user_model.dart';
 import '../../services/group_service.dart';
 import '../../services/user_service.dart';
 import '../../widgets/group_leaderboard.dart';
+import 'edit_group_screen.dart';
 
 /// Screen displaying group details and leaderboard
 class GroupDetailsScreen extends StatefulWidget {
   final GroupModel group;
 
   const GroupDetailsScreen({
-    Key? key,
+    super.key,
     required this.group,
-  }) : super(key: key);
+  });
 
   @override
   State<GroupDetailsScreen> createState() => _GroupDetailsScreenState();
@@ -410,8 +412,8 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: const [
+                    const Row(
+                      children: [
                         Icon(Icons.vpn_key, color: AppColors.primary),
                         SizedBox(width: 12),
                         Text(
@@ -586,18 +588,43 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen>
     }
   }
 
-  void _shareInviteCode() {
-    _copyInviteCode(widget.group.inviteCode ?? '');
-    // TODO: Implement native share dialog
+  void _shareInviteCode() async {
+    try {
+      final message = '''
+🎉 Rejoins mon groupe "${widget.group.name}" sur DIZONLI!
+
+📱 Code d'invitation: ${widget.group.inviteCode}
+
+DIZONLI est une application de suivi d'activité physique et de défis sportifs.
+Télécharge l'app et utilise ce code pour nous rejoindre!
+
+🚶 Marchons ensemble vers une meilleure santé!
+''';
+
+      await Share.share(
+        message,
+        subject: 'Invitation groupe DIZONLI - ${widget.group.name}',
+      );
+    } catch (e) {
+      // Fallback: copier le code
+      _copyInviteCode(widget.group.inviteCode ?? '');
+    }
   }
 
-  void _editGroup() {
-    // TODO: Navigate to edit group screen
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Modification du groupe à venir...'),
+  void _editGroup() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EditGroupScreen(group: widget.group),
       ),
     );
+    
+    // Si des modifications ont été faites, recharger les données
+    if (result == true) {
+      setState(() {
+        _loadMembers();
+      });
+    }
   }
 
   void _deleteGroup() {

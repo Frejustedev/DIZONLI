@@ -86,6 +86,19 @@ class UserProvider with ChangeNotifier {
     }
   }
 
+  // Rafraîchir les données utilisateur
+  Future<void> refreshUser() async {
+    if (_currentUser != null) {
+      try {
+        _currentUser = await _authService.getUserData(_currentUser!.id);
+        notifyListeners();
+      } catch (e) {
+        _error = e.toString();
+        notifyListeners();
+      }
+    }
+  }
+
   // Update user
   Future<void> updateUser(UserModel user) async {
     _isLoading = true;
