@@ -17,13 +17,11 @@ import 'package:cloudinary_public/cloudinary_public.dart';
 class CloudinaryService {
   late CloudinaryPublic _cloudinary;
   
-  // ⚠️ IMPORTANT: Remplacer ces valeurs par vos credentials Cloudinary
-  // 1. Créer compte: https://cloudinary.com/users/register/free
-  // 2. Dashboard → Settings → Upload
-  // 3. Créer "Upload Preset" (Signing Mode: Unsigned)
-  // 4. Copier Cloud Name et Upload Preset Name ici
-  static const String _cloudName = 'VOTRE_CLOUD_NAME'; // Ex: dzabcdefg
-  static const String _uploadPreset = 'VOTRE_UPLOAD_PRESET'; // Ex: ml_default
+  // ✅ Credentials Cloudinary configurés
+  // Cloud Name: dwhnoukrt
+  // Upload Preset: ml_default (preset par défaut unsigned)
+  static const String _cloudName = 'dwhnoukrt';
+  static const String _uploadPreset = 'ml_default';
 
   CloudinaryService() {
     _cloudinary = CloudinaryPublic(
