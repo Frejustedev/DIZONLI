@@ -5,12 +5,11 @@ import '../../core/constants/app_colors.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/step_provider.dart';
 import '../../services/step_service.dart';
-import '../../services/user_service.dart';
 import '../../services/friendship_service.dart';
 import '../../models/step_record_model.dart';
 import '../../models/user_model.dart';
 import '../../widgets/progress_ring.dart';
-import '../../widgets/google_fit_weekly_chart.dart';
+import '../../widgets/simple_weekly_histograms.dart';
 import '../../widgets/stats_summary.dart';
 import '../../widgets/mini_leaderboard.dart';
 import '../../widgets/stat_card.dart';
@@ -24,50 +23,98 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   final StepService _stepService = StepService();
-  final UserService _userService = UserService();
   final FriendshipService _friendshipService = FriendshipService();
 
   List<StepRecordModel> _weekData = [];
   List<UserModel> _topFriends = [];
-  int _streak = 0;
+  String _walkingTime = '0 min';
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadData();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final userProvider = context.read<UserProvider>();
+      if (userProvider.currentUser != null) {
+        // Initialiser le StepProvider
+        await context.read<StepProvider>().initialize(
+          userId: userProvider.currentUser!.id,
+        );
+      }
+      await _loadData();
+    });
   }
 
   Future<void> _loadData() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
 
     try {
       final currentUser = auth.FirebaseAuth.instance.currentUser;
-      if (currentUser == null) return;
+      if (currentUser == null) {
+        debugPrint('❌ Aucun utilisateur connecté');
+        if (mounted) setState(() => _isLoading = false);
+        return;
+      }
+
+      debugPrint('🔄 Chargement des données du dashboard...');
+
+      // 🔧 RECALCUL des statistiques totales (correction des données corrompues)
+      try {
+        await _stepService.recalculateTotalStats(currentUser.uid);
+        // Force le rechargement du UserProvider pour afficher les nouvelles stats
+        if (mounted) {
+          await context.read<UserProvider>().loadUser(currentUser.uid);
+        }
+      } catch (e) {
+        debugPrint('⚠️ Erreur lors du recalcul des stats: $e');
+      }
 
       // Charge les pas de la semaine
-      final weekData = await _stepService.getWeekSteps(currentUser.uid);
+      List<StepRecordModel> weekData = [];
+      try {
+        weekData = await _stepService.getWeekSteps(currentUser.uid);
+        debugPrint('✅ Données de la semaine chargées: ${weekData.length} jours');
+      } catch (e) {
+        debugPrint('⚠️ Erreur chargement semaine: $e');
+      }
 
-      // Charge le streak
-      final user = await _userService.getUser(currentUser.uid);
-      final streak = await _stepService.getStreak(
-        currentUser.uid,
-        user?.dailyGoal ?? 10000,
-      );
+      // Calcule le temps de marche basé sur les pas du jour
+      String walkingTime = '0 min';
+      try {
+        final todayRecord = await _stepService.getStepsByDate(
+          currentUser.uid,
+          DateTime.now(),
+        );
+        final todaySteps = todayRecord?.steps ?? 0;
+        walkingTime = _calculateWalkingTime(todaySteps);
+        debugPrint('✅ Temps de marche calculé: $walkingTime pour $todaySteps pas');
+      } catch (e) {
+        debugPrint('⚠️ Erreur calcul temps: $e');
+      }
 
       // Charge les top amis
-      final friends = await _friendshipService.getFriendsProfiles(currentUser.uid);
-      friends.sort((a, b) => b.totalSteps.compareTo(a.totalSteps));
+      List<UserModel> friends = [];
+      try {
+        friends = await _friendshipService.getFriendsProfiles(currentUser.uid);
+        friends.sort((a, b) => b.totalSteps.compareTo(a.totalSteps));
+        debugPrint('✅ Amis chargés: ${friends.length} amis trouvés');
+      } catch (e) {
+        debugPrint('⚠️ Erreur chargement amis: $e');
+      }
 
-      setState(() {
-        _weekData = weekData;
-        _streak = streak;
-        _topFriends = friends.take(3).toList();
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _weekData = weekData;
+          _walkingTime = walkingTime;
+          _topFriends = friends.take(3).toList();
+          _isLoading = false;
+        });
+        debugPrint('✅ Dashboard mis à jour avec succès');
+      }
     } catch (e) {
-      debugPrint('Erreur lors du chargement des données: $e');
-      setState(() => _isLoading = false);
+      debugPrint('❌ Erreur globale lors du chargement: $e');
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -83,132 +130,90 @@ class _DashboardScreenState extends State<DashboardScreen> {
       );
     }
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        foregroundColor: AppColors.text,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Bonjour, ${user.name.split(' ').first} 👋',
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            Text(
-              _getGreetingMessage(),
-              style: const TextStyle(
-                fontSize: 12,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () {
-              Navigator.pushNamed(context, '/notifications');
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () {
-              Navigator.pushNamed(context, '/profile');
-            },
-          ),
-        ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          await Future.wait([
-            stepProvider.initialize(userId: user.id),
-            stepProvider.forceSave(),
-            _loadData(),
-          ]);
-        },
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Progress Ring
-                    Center(
-                      child: ProgressRing(
-                        current: stepProvider.steps,
-                        goal: user.dailyGoal,
-                        size: 220,
-                        strokeWidth: 14,
+    return RefreshIndicator(
+      onRefresh: () async {
+        await Future.wait([
+          stepProvider.initialize(userId: user.id),
+          stepProvider.forceSave(),
+          _loadData(),
+        ]);
+      },
+      child: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Progress Ring
+                  Center(
+                    child: ProgressRing(
+                      current: stepProvider.steps,
+                      goal: user.dailyGoal,
+                      size: 220,
+                      strokeWidth: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Histogrammes Semaine (Pas et Distance)
+                  SimpleWeeklyHistograms(
+                    weekData: _weekData,
+                    dailyGoal: user.dailyGoal,
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Quick Stats Cards
+                  Row(
+                    children: [
+                      Expanded(
+                        child: StatCard(
+                          icon: Icons.local_fire_department,
+                          title: 'Calories',
+                          value: '${stepProvider.calories.toInt()} kcal',
+                          color: AppColors.accent,
+                        ),
+                      ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: StatCard(
+                        icon: Icons.access_time,
+                        title: 'Temps',
+                        value: _walkingTime,
+                        color: AppColors.primary,
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
 
-                    // Google Fit Style Weekly Charts
-                    GoogleFitWeeklyChart(
-                      weekData: _weekData,
-                      dailyGoal: user.dailyGoal,
-                    ),
-                    const SizedBox(height: 16),
+                  // Stats Summary
+                  StatsSummary(
+                    totalSteps: user.totalSteps,
+                    totalDistance: user.totalDistance / 1000, // Convertir mètres en km
+                    totalCalories: user.totalCalories.toDouble(),
+                    streak: 0, // On garde pour compatibilité mais n'est plus affiché
+                  ),
+                  const SizedBox(height: 16),
 
-                    // Quick Stats Cards
-                    Row(
-                      children: [
-                        Expanded(
-                          child: StatCard(
-                            icon: Icons.local_fire_department,
-                            title: 'Calories',
-                            value: '${stepProvider.calories.toInt()} kcal',
-                            color: AppColors.accent,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: StatCard(
-                            icon: Icons.track_changes,
-                            title: 'Streak',
-                            value: '$_streak jours',
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
+                  // Mini Leaderboard
+                  MiniLeaderboard(
+                    topFriends: _topFriends,
+                    currentUserId: user.uid,
+                  ),
+                  const SizedBox(height: 16),
 
-                    // Stats Summary
-                    StatsSummary(
-                      totalSteps: user.totalSteps,
-                      totalDistance: user.totalDistance.toDouble(),
-                      totalCalories: user.totalCalories.toDouble(),
-                      streak: _streak,
-                    ),
-                    const SizedBox(height: 16),
+                  // Quick Actions
+                  _buildQuickActions(context),
+                  const SizedBox(height: 16),
 
-                    // Mini Leaderboard
-                    MiniLeaderboard(
-                      topFriends: _topFriends,
-                      currentUserId: user.uid,
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Quick Actions
-                    _buildQuickActions(context),
-                    const SizedBox(height: 16),
-
-                    // Motivational Card
-                    _buildMotivationalCard(stepProvider.steps, user.dailyGoal),
-                    const SizedBox(height: 20),
-                  ],
-                ),
+                  // Motivational Card
+                  _buildMotivationalCard(stepProvider.steps, user.dailyGoal),
+                  const SizedBox(height: 20),
+                ],
               ),
-      ),
-      bottomNavigationBar: _buildBottomNav(context),
+            ),
     );
   }
 
@@ -363,57 +368,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildBottomNav(BuildContext context) {
-    return BottomNavigationBar(
-      currentIndex: 0,
-      type: BottomNavigationBarType.fixed,
-      selectedItemColor: AppColors.primary,
-      unselectedItemColor: AppColors.textSecondary,
-      elevation: 8,
-      items: const [
-        BottomNavigationBarItem(
-          icon: Icon(Icons.home),
-          label: 'Accueil',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.group),
-          label: 'Groupes',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.emoji_events),
-          label: 'Défis',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.person),
-          label: 'Profil',
-        ),
-      ],
-      onTap: (index) {
-        switch (index) {
-          case 0:
-            break;
-          case 1:
-            Navigator.pushNamed(context, '/groups');
-            break;
-          case 2:
-            Navigator.pushNamed(context, '/challenges');
-            break;
-          case 3:
-            Navigator.pushNamed(context, '/profile');
-            break;
-        }
-      },
-    );
-  }
+  /// Calcule le temps de marche basé sur le nombre de pas
+  /// Distance = pas × 0.762 m (longueur moyenne d'un pas)
+  /// Vitesse moyenne = 5 km/h
+  /// Temps = Distance / Vitesse
+  String _calculateWalkingTime(int steps) {
+    if (steps == 0) return '0 min';
 
-  String _getGreetingMessage() {
-    final hour = DateTime.now().hour;
-    if (hour < 12) {
-      return 'Bonne matinée!';
-    } else if (hour < 18) {
-      return 'Bon après-midi!';
+    // Calcul de la distance en km
+    final distanceKm = steps * 0.000762; // 0.762 m par pas = 0.000762 km
+
+    // Vitesse moyenne de marche : 5 km/h
+    const averageSpeedKmh = 5.0;
+
+    // Temps en heures
+    final timeHours = distanceKm / averageSpeedKmh;
+
+    // Convertir en minutes
+    final timeMinutes = (timeHours * 60).round();
+
+    if (timeMinutes < 60) {
+      return '$timeMinutes min';
     } else {
-      return 'Bonne soirée!';
+      final hours = timeMinutes ~/ 60;
+      final minutes = timeMinutes % 60;
+      if (minutes == 0) {
+        return '${hours}h';
+      }
+      return '${hours}h ${minutes}min';
     }
   }
 }
+

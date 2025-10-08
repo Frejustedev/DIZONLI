@@ -1,7 +1,7 @@
 name: dizonli_app
 description: "Application de suivi de pas et défis sportifs avec intégration sociale"
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.0-beta+1
 
 environment:
   sdk: ^3.5.4

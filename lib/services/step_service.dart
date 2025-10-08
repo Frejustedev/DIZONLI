@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import '../models/step_record_model.dart';
 import 'firestore_service.dart';
@@ -18,14 +19,15 @@ class StepService {
       final docId = '${userId}_$dateStr';
 
       // Calculs
-      final distance = steps * 0.000762; // km (0.762m par pas)
+      final distanceKm = steps * 0.000762; // km (0.762m par pas)
+      final distanceMeters = steps * 0.762; // mètres (0.762m par pas)
       final calories = steps * 0.04; // 0.04 calories par pas
 
       final data = {
         'userId': userId,
         'date': Timestamp.fromDate(DateTime(date.year, date.month, date.day)),
         'steps': steps,
-        'distance': distance,
+        'distance': distanceKm, // Stocké en km dans les records
         'calories': calories,
         'updatedAt': FieldValue.serverTimestamp(),
       };
@@ -46,17 +48,21 @@ class StepService {
       // Met à jour les stats totales de l'utilisateur
       if (existing == null || existing['steps'] < steps) {
         final existingSteps = existing?['steps'];
-        final existingDistance = existing?['distance'];
+        final existingDistanceKm = existing?['distance'];
         final existingCalories = existing?['calories'];
         
         final incrementSteps = existing == null ? steps : steps - ((existingSteps is int) ? existingSteps : (existingSteps as num).toInt());
-        final incrementDistance = existing == null ? distance : distance - ((existingDistance is double) ? existingDistance : (existingDistance as num).toDouble());
+        
+        // Calculer l'incrément en mètres pour totalDistance
+        final existingDistanceMeters = existingDistanceKm == null ? 0.0 : ((existingDistanceKm is double) ? existingDistanceKm : (existingDistanceKm as num).toDouble()) * 1000;
+        final incrementDistanceMeters = existing == null ? distanceMeters : distanceMeters - existingDistanceMeters;
+        
         final incrementCalories = existing == null ? calories : calories - ((existingCalories is double) ? existingCalories : (existingCalories as num).toDouble());
-
+        
         await _userService.updateTotalStats(
           userId,
           steps: incrementSteps,
-          distance: incrementDistance,
+          distanceMeters: incrementDistanceMeters.toInt(),
           calories: incrementCalories,
         );
       }
@@ -130,10 +136,9 @@ class StepService {
     }
   }
 
-  /// Récupère les pas de la semaine en cours
+  /// Récupère les pas de la semaine en cours (7 jours complets)
   Future<List<StepRecordModel>> getWeekSteps(String userId) async {
-    final now = DateTime.now();
-    return getStepsHistory(userId, now.weekday);
+    return getStepsHistory(userId, 7); // ✅ Toujours 7 jours pour la semaine complète
   }
 
   /// Récupère les pas du mois en cours
@@ -184,6 +189,53 @@ class StepService {
       return today != null && today.steps >= dailyGoal;
     } catch (e) {
       return false;
+    }
+  }
+
+  /// Recalcule les statistiques totales depuis zéro (correction des données corrompues)
+  Future<void> recalculateTotalStats(String userId) async {
+    try {
+      debugPrint('🔄 Recalcul complet des statistiques totales...');
+      
+      // Récupère TOUS les enregistrements
+      final allRecords = await getAllStepRecords(userId);
+      
+      if (allRecords.isEmpty) {
+        debugPrint('⚠️ Aucun enregistrement trouvé pour le recalcul');
+        return;
+      }
+      
+      // Calcule les totaux réels
+      int totalSteps = 0;
+      double totalDistanceKm = 0;
+      double totalCalories = 0;
+      
+      for (final record in allRecords) {
+        totalSteps += record.steps;
+        totalDistanceKm += record.distance; // déjà en km dans les records
+        totalCalories += record.calories.toDouble();
+      }
+      
+      // Convertit la distance en mètres pour totalDistance dans user
+      final totalDistanceMeters = (totalDistanceKm * 1000).toInt();
+      
+      debugPrint('✅ Statistiques recalculées:');
+      debugPrint('   - Pas: $totalSteps');
+      debugPrint('   - Distance: ${totalDistanceMeters}m (${totalDistanceKm.toStringAsFixed(2)}km)');
+      debugPrint('   - Calories: ${totalCalories.toInt()}');
+      debugPrint('   - Nombre d\'enregistrements: ${allRecords.length}');
+      
+      // Met à jour directement (pas d'incrément) les stats dans Firestore
+      await _firestore.collection('users').doc(userId).update({
+        'totalSteps': totalSteps,
+        'totalDistance': totalDistanceMeters,
+        'totalCalories': totalCalories.toInt(),
+      });
+      
+      debugPrint('✅ Statistiques totales mises à jour avec succès!');
+    } catch (e) {
+      debugPrint('❌ Erreur lors du recalcul: $e');
+      throw Exception('Erreur lors du recalcul des statistiques: $e');
     }
   }
 

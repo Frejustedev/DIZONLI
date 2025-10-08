@@ -3,6 +3,7 @@ import '../core/constants/app_colors.dart';
 import '../core/utils/user_helper.dart';
 import '../models/user_model.dart';
 import '../screens/friends/friends_screen.dart';
+import '../screens/profile/user_profile_screen.dart';
 
 /// Widget de mini classement des amis
 class MiniLeaderboard extends StatelessWidget {
@@ -138,22 +139,37 @@ class _LeaderboardItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: isCurrentUser
-            ? AppColors.primary.withOpacity(0.1)
-            : Colors.grey[50],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
+    return InkWell(
+      onTap: isCurrentUser
+          ? null
+          : () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => UserProfileScreen(
+                    userId: user.uid,
+                    userProfile: user,
+                  ),
+                ),
+              );
+            },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
           color: isCurrentUser
-              ? AppColors.primary.withOpacity(0.3)
-              : Colors.transparent,
-          width: 2,
+              ? AppColors.primary.withOpacity(0.1)
+              : Colors.grey[50],
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isCurrentUser
+                ? AppColors.primary.withOpacity(0.3)
+                : Colors.transparent,
+            width: 2,
+          ),
         ),
-      ),
-      child: Row(
+        child: Row(
         children: [
           // Rank badge
           Container(
@@ -259,6 +275,7 @@ class _LeaderboardItem extends StatelessWidget {
               size: 20,
             ),
         ],
+        ),
       ),
     );
   }

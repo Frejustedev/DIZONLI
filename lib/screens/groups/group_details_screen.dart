@@ -7,7 +7,7 @@ import '../../models/group_model.dart';
 import '../../models/user_model.dart';
 import '../../services/group_service.dart';
 import '../../services/user_service.dart';
-import '../../widgets/group_member_tile.dart';
+import '../../services/step_service.dart';
 import 'edit_group_screen.dart';
 import 'full_leaderboard_screen.dart';
 
@@ -24,15 +24,20 @@ class GroupDetailsScreen extends StatefulWidget {
   State<GroupDetailsScreen> createState() => _GroupDetailsScreenState();
 }
 
+enum GroupPeriod { day, week, month, year, total }
+
 class _GroupDetailsScreenState extends State<GroupDetailsScreen>
     with SingleTickerProviderStateMixin {
   final GroupService _groupService = GroupService();
   final UserService _userService = UserService();
+  final StepService _stepService = StepService();
   final String _currentUserId = FirebaseAuth.instance.currentUser?.uid ?? '';
 
   late TabController _tabController;
   List<UserModel> _members = [];
   bool _isLoading = true;
+  GroupPeriod _selectedPeriod = GroupPeriod.week;
+  Map<String, int> _memberStepsForPeriod = {};
 
   @override
   void initState() {
@@ -69,6 +74,12 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen>
 
       setState(() {
         _members = members;
+      });
+
+      // Charger les pas pour la période sélectionnée
+      await _loadStepsForPeriod();
+
+      setState(() {
         _isLoading = false;
       });
     } catch (e) {
@@ -84,6 +95,58 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen>
         );
       }
     }
+  }
+
+  Future<void> _loadStepsForPeriod() async {
+    final stepsMap = <String, int>{};
+    final now = DateTime.now();
+
+    for (final member in _members) {
+      int steps = 0;
+
+      try {
+      switch (_selectedPeriod) {
+        case GroupPeriod.day:
+          // Pas d'aujourd'hui
+            final startOfDay = DateTime(now.year, now.month, now.day);
+            steps = await _stepService.getTotalSteps(member.uid, startOfDay, now);
+          break;
+
+        case GroupPeriod.week:
+            // Pas de la semaine (du lundi à aujourd'hui)
+            final weekday = now.weekday; // 1 = lundi, 7 = dimanche
+            final startOfWeek = DateTime(now.year, now.month, now.day).subtract(Duration(days: weekday - 1));
+            steps = await _stepService.getTotalSteps(member.uid, startOfWeek, now);
+          break;
+
+        case GroupPeriod.month:
+          // Pas du mois en cours
+          final startOfMonth = DateTime(now.year, now.month, 1);
+            steps = await _stepService.getTotalSteps(member.uid, startOfMonth, now);
+          break;
+
+        case GroupPeriod.year:
+          // Pas de l'année en cours
+          final startOfYear = DateTime(now.year, 1, 1);
+            steps = await _stepService.getTotalSteps(member.uid, startOfYear, now);
+          break;
+
+        case GroupPeriod.total:
+          // Total de tous les temps
+          steps = member.totalSteps;
+          break;
+        }
+      } catch (e) {
+        debugPrint('Erreur chargement pas pour ${member.name}: $e');
+        steps = 0;
+      }
+
+      stepsMap[member.uid] = steps;
+    }
+
+    setState(() {
+      _memberStepsForPeriod = stepsMap;
+    });
   }
 
   @override
@@ -203,10 +266,18 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen>
             ],
           ),
 
+          // Period Selector
+          SliverToBoxAdapter(
+            child: Container(
+              margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: _buildPeriodSelector(),
+            ),
+          ),
+
           // Stats Header
           SliverToBoxAdapter(
             child: Container(
-              margin: const EdgeInsets.all(16),
+              margin: const EdgeInsets.fromLTRB(16, 8, 16, 16),
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -237,7 +308,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen>
                   _buildStatColumn(
                     icon: Icons.directions_walk,
                     value: _formatNumber(_calculateTotalSteps()),
-                    label: 'Total Pas',
+                    label: 'Pas ${_getPeriodLabel()}',
                     color: AppColors.secondary,
                   ),
                   Container(
@@ -336,10 +407,75 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen>
     );
   }
 
+  Widget _buildPeriodSelector() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(12),
+      ),
+      padding: const EdgeInsets.all(4),
+      child: Row(
+        children: [
+          _buildPeriodButton('Jour', GroupPeriod.day),
+          _buildPeriodButton('Semaine', GroupPeriod.week),
+          _buildPeriodButton('Mois', GroupPeriod.month),
+          _buildPeriodButton('Année', GroupPeriod.year),
+          _buildPeriodButton('Total', GroupPeriod.total),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPeriodButton(String label, GroupPeriod period) {
+    final isSelected = _selectedPeriod == period;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () async {
+          if (_selectedPeriod != period) {
+            setState(() {
+              _selectedPeriod = period;
+            });
+            await _loadStepsForPeriod();
+          }
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected ? AppColors.primary : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: AppColors.primary.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : [],
+          ),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+              color: isSelected ? Colors.white : AppColors.textSecondary,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildLeaderboardTab() {
-    // Trier les membres par totalSteps
+    // Trier les membres par pas de la période sélectionnée
     final sortedMembers = List<UserModel>.from(_members)
-      ..sort((a, b) => b.totalSteps.compareTo(a.totalSteps));
+      ..sort((a, b) {
+        final stepsA = _memberStepsForPeriod[a.uid] ?? 0;
+        final stepsB = _memberStepsForPeriod[b.uid] ?? 0;
+        return stepsB.compareTo(stepsA);
+      });
     
     // Top 3
     final top3 = sortedMembers.take(3).toList();
@@ -437,8 +573,8 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen>
     final second = top3.length > 1 ? top3[1] : null;
     final third = top3.length > 2 ? top3[2] : null;
 
-    return Container(
-      height: 200,
+    return SizedBox(
+      height: 250, // Augmenté pour éviter overflow
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         mainAxisAlignment: MainAxisAlignment.center,
@@ -558,7 +694,7 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen>
         
         // Pas
         Text(
-          _formatNumber(user.totalSteps),
+          _formatNumber(_memberStepsForPeriod[user.uid] ?? 0),
           style: TextStyle(
             fontSize: 11,
             color: color,
@@ -817,10 +953,22 @@ class _GroupDetailsScreenState extends State<GroupDetailsScreen>
   }
 
   int _calculateTotalSteps() {
-    return _members.fold<int>(
-      0,
-      (sum, member) => sum + member.totalSteps,
-    );
+    return _memberStepsForPeriod.values.fold<int>(0, (sum, steps) => sum + steps);
+  }
+  
+  String _getPeriodLabel() {
+    switch (_selectedPeriod) {
+      case GroupPeriod.day:
+        return 'aujourd\'hui';
+      case GroupPeriod.week:
+        return 'cette semaine';
+      case GroupPeriod.month:
+        return 'ce mois';
+      case GroupPeriod.year:
+        return 'cette année';
+      case GroupPeriod.total:
+        return 'total';
+    }
   }
 
   String _formatDate(DateTime date) {
@@ -993,29 +1141,6 @@ Télécharge l'app et utilise ce code pour nous rejoindre!
     );
   }
 
-  void _removeMember(String memberId) async {
-    try {
-      await _groupService.removeGroupMember(widget.group.id, memberId);
-      _loadMembers();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Membre retiré du groupe'),
-            backgroundColor: AppColors.success,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur: $e'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    }
-  }
 }
 
 // Helper class for pinned tab bar

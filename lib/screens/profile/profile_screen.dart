@@ -63,6 +63,35 @@ class ProfileScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 4),
+                  // Pseudo avec bouton d'édition
+                  GestureDetector(
+                    onTap: () => _showEditPseudoDialog(context, user),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.alternate_email, color: Colors.white70, size: 16),
+                          const SizedBox(width: 6),
+                          Text(
+                            user.pseudo ?? 'Ajouter un pseudo',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          const Icon(Icons.edit, color: Colors.white70, size: 14),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   Text(
                     user.email,
                     style: const TextStyle(
@@ -100,6 +129,15 @@ class ProfileScreen extends StatelessWidget {
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 children: [
+                  // Informations physiques (Poids, Taille, IMC)
+                  if (user.height != null || user.weight != null) ...[
+                    _buildPhysicalInfoCard(context, user),
+                    const SizedBox(height: 12),
+                  ] else ...[
+                    // Bouton pour ajouter les informations physiques
+                    _buildAddPhysicalInfoCard(context, user),
+                    const SizedBox(height: 12),
+                  ],
                   _buildStatCard(
                     'Total de pas',
                     user.totalSteps.toString(),
@@ -145,7 +183,7 @@ class ProfileScreen extends StatelessWidget {
     return Consumer<BadgeProvider>(
       builder: (context, badgeProvider, child) {
         // Load user badges if not already loaded
-        if (badgeProvider.userBadges.isEmpty) {
+        if (!badgeProvider.userBadgesLoaded && !badgeProvider.isLoading) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             badgeProvider.loadUserBadges(userId);
           });
@@ -281,6 +319,273 @@ class ProfileScreen extends StatelessWidget {
       case BadgeRarity.legendary:
         return Colors.amber;
     }
+  }
+
+  Widget _buildAddPhysicalInfoCard(BuildContext context, user) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: InkWell(
+        onTap: () => _showEditPhysicalInfoDialog(context, user),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.accent.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.monitor_weight,
+                  color: AppColors.accent,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(width: 16),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Informations physiques',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Ajoutez votre taille et poids',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.add_circle,
+                color: AppColors.primary,
+                size: 28,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPhysicalInfoCard(BuildContext context, user) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.accent.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.monitor_weight,
+                        color: AppColors.accent,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Informations physiques',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                IconButton(
+                  icon: const Icon(Icons.edit, color: AppColors.primary),
+                  onPressed: () => _showEditPhysicalInfoDialog(context, user),
+                  tooltip: 'Modifier',
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                if (user.height != null)
+                  Expanded(
+                    child: _buildPhysicalInfo(
+                      icon: Icons.height,
+                      label: 'Taille',
+                      value: '${user.height!.toStringAsFixed(0)} cm',
+                    ),
+                  ),
+                if (user.height != null && user.weight != null)
+                  const SizedBox(width: 12),
+                if (user.weight != null)
+                  Expanded(
+                    child: _buildPhysicalInfo(
+                      icon: Icons.monitor_weight_outlined,
+                      label: 'Poids',
+                      value: '${user.weight!.toStringAsFixed(1)} kg',
+                    ),
+                  ),
+              ],
+            ),
+            if (user.bmi != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      _getBMIColor(user.bmi!).withOpacity(0.2),
+                      _getBMIColor(user.bmi!).withOpacity(0.1),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: _getBMIColor(user.bmi!),
+                    width: 2,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: _getBMIColor(user.bmi!),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.monitor_heart_outlined,
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Indice de Masse Corporelle (IMC)',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Text(
+                                user.bmi!.toStringAsFixed(1),
+                                style: TextStyle(
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.bold,
+                                  color: _getBMIColor(user.bmi!),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _getBMIColor(user.bmi!),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  _getBMICategory(user.bmi!),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPhysicalInfo({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: AppColors.primary, size: 24),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getBMIColor(double bmi) {
+    if (bmi < 18.5) return Colors.blue;
+    if (bmi < 25) return Colors.green;
+    if (bmi < 30) return Colors.orange;
+    return Colors.red;
+  }
+
+  String _getBMICategory(double bmi) {
+    if (bmi < 18.5) return 'Maigreur';
+    if (bmi < 25) return 'Normal';
+    if (bmi < 30) return 'Surpoids';
+    return 'Obésité';
   }
 
   Widget _buildStatCard(String title, String value, IconData icon, Color color) {
@@ -567,6 +872,409 @@ class ProfileScreen extends StatelessWidget {
                     if (context.mounted) {
                       Navigator.pop(context); // Close loading
                       
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: const Row(
+                            children: [
+                              Icon(Icons.error_outline, color: Colors.white),
+                              SizedBox(width: 12),
+                              Expanded(
+                                child: Text('Erreur lors de la mise à jour'),
+                              ),
+                            ],
+                          ),
+                          backgroundColor: AppColors.error,
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      );
+                    }
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text('Enregistrer'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showEditPhysicalInfoDialog(BuildContext context, user) {
+    final TextEditingController heightController = TextEditingController(
+      text: user.height?.toStringAsFixed(0) ?? '',
+    );
+    final TextEditingController weightController = TextEditingController(
+      text: user.weight?.toStringAsFixed(1) ?? '',
+    );
+    final formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.accent.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.monitor_weight, color: AppColors.accent),
+              ),
+              const SizedBox(width: 12),
+              const Text('Informations physiques'),
+            ],
+          ),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Renseignez votre taille et votre poids',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // Taille
+                TextFormField(
+                  controller: heightController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+                  ],
+                  decoration: InputDecoration(
+                    labelText: 'Taille',
+                    hintText: 'Ex: 175',
+                    suffixText: 'cm',
+                    prefixIcon: const Icon(Icons.height, color: AppColors.primary),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    filled: true,
+                    fillColor: Colors.grey[50],
+                  ),
+                  validator: (value) {
+                    if (value != null && value.isNotEmpty) {
+                      final height = double.tryParse(value);
+                      if (height == null) {
+                        return 'Veuillez entrer un nombre valide';
+                      }
+                      if (height < 50 || height > 250) {
+                        return 'La taille doit être entre 50 et 250 cm';
+                      }
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                // Poids
+                TextFormField(
+                  controller: weightController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+                  ],
+                  decoration: InputDecoration(
+                    labelText: 'Poids',
+                    hintText: 'Ex: 70.5',
+                    suffixText: 'kg',
+                    prefixIcon: const Icon(Icons.monitor_weight_outlined, color: AppColors.primary),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    filled: true,
+                    fillColor: Colors.grey[50],
+                  ),
+                  validator: (value) {
+                    if (value != null && value.isNotEmpty) {
+                      final weight = double.tryParse(value);
+                      if (weight == null) {
+                        return 'Veuillez entrer un nombre valide';
+                      }
+                      if (weight < 20 || weight > 300) {
+                        return 'Le poids doit être entre 20 et 300 kg';
+                      }
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.accent.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: AppColors.accent.withOpacity(0.3),
+                    ),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.info_outline, 
+                        color: AppColors.accent, 
+                        size: 20,
+                      ),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'L\'IMC sera calculé automatiquement',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Annuler'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (formKey.currentState!.validate()) {
+                  final heightText = heightController.text.trim();
+                  final weightText = weightController.text.trim();
+                  
+                  // Au moins une valeur doit être renseignée
+                  if (heightText.isEmpty && weightText.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Text('Veuillez renseigner au moins une valeur'),
+                        backgroundColor: AppColors.error,
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    );
+                    return;
+                  }
+
+                  final height = heightText.isNotEmpty ? double.parse(heightText) : null;
+                  final weight = weightText.isNotEmpty ? double.parse(weightText) : null;
+                  
+                  // Show loading
+                  Navigator.pop(dialogContext);
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (context) => const Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                  );
+
+                  try {
+                    final userService = UserService();
+                    await userService.updatePhysicalInfo(
+                      user.id,
+                      height: height,
+                      weight: weight,
+                    );
+                    
+                    // Update local state
+                    if (context.mounted) {
+                      await context.read<UserProvider>().loadUser(user.id);
+                      
+                      Navigator.pop(context); // Close loading
+                      
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: const Row(
+                            children: [
+                              Icon(Icons.check_circle, color: Colors.white),
+                              SizedBox(width: 12),
+                              Text('Informations mises à jour'),
+                            ],
+                          ),
+                          backgroundColor: AppColors.success,
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      Navigator.pop(context); // Close loading
+                      
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: const Row(
+                            children: [
+                              Icon(Icons.error_outline, color: Colors.white),
+                              SizedBox(width: 12),
+                              Expanded(
+                                child: Text('Erreur lors de la mise à jour'),
+                              ),
+                            ],
+                          ),
+                          backgroundColor: AppColors.error,
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      );
+                    }
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text('Enregistrer'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  static void _showEditPseudoDialog(BuildContext context, user) {
+    final TextEditingController pseudoController = TextEditingController(
+      text: user.pseudo ?? '',
+    );
+    final formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.alternate_email,
+                  color: AppColors.primary,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Text('Modifier le pseudo'),
+            ],
+          ),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: pseudoController,
+                  decoration: InputDecoration(
+                    labelText: 'Pseudo',
+                    hintText: 'Entrez votre pseudo',
+                    prefixIcon: const Icon(Icons.alternate_email),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    filled: true,
+                    fillColor: Colors.grey[50],
+                  ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Le pseudo ne peut pas être vide';
+                    }
+                    if (value.length < 3) {
+                      return 'Le pseudo doit contenir au moins 3 caractères';
+                    }
+                    if (value.length > 20) {
+                      return 'Le pseudo ne peut pas dépasser 20 caractères';
+                    }
+                    // Vérifier que le pseudo ne contient que des caractères alphanumériques et underscore
+                    if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(value)) {
+                      return 'Le pseudo ne peut contenir que des lettres, chiffres et _';
+                    }
+                    return null;
+                  },
+                  maxLength: 20,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_]')),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Annuler'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (formKey.currentState!.validate()) {
+                  final pseudo = pseudoController.text.trim();
+                  
+                  Navigator.pop(dialogContext);
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (context) => const Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                  );
+
+                  try {
+                    final userService = UserService();
+                    await userService.updatePseudo(user.id, pseudo);
+
+                    if (context.mounted) {
+                      await context.read<UserProvider>().loadUser(user.id);
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: const Row(
+                            children: [
+                              Icon(Icons.check_circle, color: Colors.white),
+                              SizedBox(width: 12),
+                              Text('Pseudo mis à jour'),
+                            ],
+                          ),
+                          backgroundColor: AppColors.success,
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: const Row(

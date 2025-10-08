@@ -9,7 +9,7 @@ import '../../widgets/badge_detail_card.dart';
 
 /// Écran d'affichage des badges
 class BadgesScreen extends StatefulWidget {
-  const BadgesScreen({Key? key}) : super(key: key);
+  const BadgesScreen({super.key});
 
   @override
   State<BadgesScreen> createState() => _BadgesScreenState();
@@ -25,16 +25,26 @@ class _BadgesScreenState extends State<BadgesScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _loadBadges();
+    // Charger les badges après que le widget soit monté
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadBadges();
+    });
   }
 
   Future<void> _loadBadges() async {
+    if (!mounted) return;
+    
     final badgeProvider = context.read<BadgeProvider>();
     final userProvider = context.read<UserProvider>();
 
     await badgeProvider.loadAllBadges();
-    if (userProvider.currentUser != null) {
-      await badgeProvider.loadUserBadges(userProvider.currentUser!.id);
+    if (mounted && userProvider.currentUser != null) {
+      // ✅ DÉBLOQUER AUTOMATIQUEMENT LES BADGES
+      await badgeProvider.checkAndUnlockBadges(userProvider.currentUser!.id);
+      // Charger les badges de l'utilisateur (déjà fait dans checkAndUnlockBadges si de nouveaux badges)
+      if (mounted) {
+        await badgeProvider.loadUserBadges(userProvider.currentUser!.id);
+      }
     }
   }
 
@@ -129,7 +139,7 @@ class _BadgesScreenState extends State<BadgesScreen>
       padding: const EdgeInsets.all(16),
       margin: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
+        gradient: const LinearGradient(
           colors: [AppColors.primary, AppColors.secondary],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,

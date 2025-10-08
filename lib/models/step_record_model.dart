@@ -4,7 +4,7 @@ class StepRecordModel {
   final String id;
   final String userId;
   final int steps;
-  final double distance; // in meters
+  final double distance; // in kilometers (km)
   final int calories;
   final DateTime date;
   final DateTime timestamp;

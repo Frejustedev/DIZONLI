@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../core/constants/app_colors.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/step_provider.dart';
@@ -133,10 +134,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       subtitle: Text(user?.email ?? ''),
       trailing: const Icon(Icons.chevron_right),
       onTap: () {
-        // TODO: Navigate to edit profile
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Édition du profil - À venir')),
-        );
+        // Navigation vers la page de profil
+        Navigator.pushNamed(context, '/profile');
       },
     );
   }
@@ -294,15 +293,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
           leading: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.grey[200],
+              color: AppColors.primary.withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(Icons.info_outline),
+            child: const Icon(Icons.info_outline, color: AppColors.primary),
           ),
-          title: const Text('Version'),
-          subtitle: const Text('1.0.0+1'),
+          title: const Text('À propos de DIZONLI'),
+          subtitle: const Text('Version 1.0.0-beta (08/10/2025)'),
           trailing: const Icon(Icons.chevron_right),
-          onTap: () => _showAboutDialog(),
+          onTap: () => Navigator.pushNamed(context, '/about'),
         ),
         ListTile(
           leading: Container(
@@ -477,39 +476,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _showAboutDialog() {
-    showAboutDialog(
-      context: context,
-      applicationName: 'DIZONLI',
-      applicationVersion: '1.0.0+1',
-      applicationIcon: Container(
-        width: 64,
-        height: 64,
-        decoration: BoxDecoration(
-          color: AppColors.primary,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: const Icon(
-          Icons.directions_walk,
-          color: Colors.white,
-          size: 32,
-        ),
-      ),
-      children: [
-        const SizedBox(height: 16),
-        const Text(
-          'Application de suivi d\'activité physique et de défis sportifs.',
-          style: TextStyle(fontSize: 14),
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          '© 2025 DIZONLI. Tous droits réservés.',
-          style: TextStyle(fontSize: 12, color: Colors.grey),
-        ),
-      ],
-    );
-  }
-
   void _confirmLogout() {
     showDialog(
       context: context,
@@ -646,7 +612,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: Colors.orange),
                   ),
-                  child: const Column(
+  child: const Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
@@ -660,8 +626,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       Text(
                         '1. Installer Google Fit depuis le Play Store\n'
                         '2. Ouvrir Google Fit et accepter les permissions\n'
-                        '3. Redémarrer DIZONLI',
-                        style: TextStyle(fontSize: 13),
+                        '3. Dans Paramètres Android → Apps → DIZONLI → Permissions\n'
+                        '4. Activer "Activité physique" ou "Fitness"\n'
+                        '5. Redémarrer DIZONLI',
+                        style: TextStyle(fontSize: 13, height: 1.5),
                       ),
                     ],
                   ),
@@ -671,7 +639,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
         actions: [
-          if (!usingSystemSteps)
+          if (!usingSystemSteps) ...[
+            ElevatedButton.icon(
+              onPressed: () async {
+                Navigator.pop(context);
+                await _openAppSettings();
+              },
+              icon: const Icon(Icons.settings),
+              label: const Text('Paramètres'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+              ),
+            ),
+            const SizedBox(width: 8),
             ElevatedButton.icon(
               onPressed: () async {
                 Navigator.pop(context);
@@ -684,6 +665,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 foregroundColor: Colors.white,
               ),
             ),
+          ],
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Fermer'),
@@ -691,6 +673,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ],
       ),
     );
+  }
+
+  /// Ouvre les paramètres de l'application pour que l'utilisateur active les permissions
+  Future<void> _openAppSettings() async {
+    try {
+      final opened = await openAppSettings();
+      if (!opened && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('❌ Impossible d\'ouvrir les paramètres automatiquement.\n'
+                'Ouvrez manuellement : Paramètres → Apps → DIZONLI → Permissions'),
+            duration: Duration(seconds: 5),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      } else if (mounted) {
+        // Afficher un message pour guider l'utilisateur
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Dans les Permissions, activez "Activité physique" ou "Fitness".\n'
+                'Puis revenez dans DIZONLI et cliquez sur "Réessayer".'),
+            duration: Duration(seconds: 6),
+            backgroundColor: AppColors.primary,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Erreur: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _retryGoogleFitActivation() async {
@@ -737,10 +755,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             content: Text(
               success
                   ? '✅ Google Fit activé avec succès!'
-                  : '❌ Google Fit non disponible. Vérifiez que Google Fit est installé et ouvert.',
+                  : '❌ Google Fit non disponible.\n'
+                    'Vérifiez que :\n'
+                    '1. Google Fit est installé et ouvert\n'
+                    '2. Les permissions "Activité physique" sont activées dans Paramètres → Apps → DIZONLI',
             ),
             backgroundColor: success ? Colors.green : Colors.orange,
-            duration: const Duration(seconds: 4),
+            duration: const Duration(seconds: 6),
           ),
         );
       }

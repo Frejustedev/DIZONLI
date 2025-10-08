@@ -4,7 +4,7 @@ import '../core/constants/app_colors.dart';
 import '../providers/user_provider.dart';
 import '../providers/step_provider.dart';
 import '../providers/notification_provider.dart';
-import 'dashboard/home_tab.dart';
+import 'dashboard/dashboard_screen.dart';
 import 'social/social_hub_screen.dart';
 import 'challenges/challenges_screen.dart';
 import 'profile/profile_screen.dart';
@@ -23,7 +23,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   DateTime? _lastBackPressTime;
 
   final List<Widget> _screens = [
-    const HomeTab(),
+    const DashboardScreen(),
     const SocialHubScreen(),
     const ChallengesScreen(),
     const ProfileScreen(),

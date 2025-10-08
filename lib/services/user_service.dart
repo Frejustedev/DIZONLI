@@ -51,6 +51,22 @@ class UserService {
     await updateUser(uid, {'dailyGoal': goal});
   }
 
+  /// Met à jour le poids et la taille
+  Future<void> updatePhysicalInfo(String uid, {double? height, double? weight}) async {
+    final Map<String, dynamic> updates = {};
+    if (height != null) updates['height'] = height;
+    if (weight != null) updates['weight'] = weight;
+
+    if (updates.isNotEmpty) {
+      await updateUser(uid, updates);
+    }
+  }
+
+  /// Met à jour le pseudo
+  Future<void> updatePseudo(String uid, String pseudo) async {
+    await updateUser(uid, {'pseudo': pseudo});
+  }
+
   /// Stream pour écouter les changements d'un utilisateur
   Stream<UserModel?> streamUser(String uid) {
     return _firestore.collection(_collection).doc(uid).snapshots().map((snapshot) {
@@ -71,7 +87,7 @@ class UserService {
   /// Met à jour les statistiques totales
   Future<void> updateTotalStats(String uid, {
     int? steps,
-    double? distance,
+    int? distanceMeters, // Distance en mètres
     double? calories,
   }) async {
     final Map<String, dynamic> updates = {};
@@ -79,11 +95,11 @@ class UserService {
     if (steps != null) {
       updates['totalSteps'] = FieldValue.increment(steps);
     }
-    if (distance != null) {
-      updates['totalDistance'] = FieldValue.increment(distance);
+    if (distanceMeters != null) {
+      updates['totalDistance'] = FieldValue.increment(distanceMeters);
     }
     if (calories != null) {
-      updates['totalCalories'] = FieldValue.increment(calories);
+      updates['totalCalories'] = FieldValue.increment(calories.toInt());
     }
     
     if (updates.isNotEmpty) {

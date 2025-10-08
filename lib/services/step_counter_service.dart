@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart';
 import 'package:pedometer/pedometer.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -141,6 +141,13 @@ class StepCounterService {
     _todaySteps = 0;
     _baseSteps = 0;
     await _saveData();
+  }
+
+  // Set steps manually (for syncing from Firestore or Google Fit)
+  Future<void> setSteps(int steps) async {
+    _todaySteps = steps;
+    await _saveData();
+    debugPrint('✅ StepCounterService mis à jour: $steps pas');
   }
 }
 

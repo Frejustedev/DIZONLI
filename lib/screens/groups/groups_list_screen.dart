@@ -581,12 +581,12 @@ class _SearchGroupsDialogState extends State<_SearchGroupsDialog> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Erreur: $e'),
             backgroundColor: Colors.red,
-          ),
-        );
+      ),
+    );
       }
     }
   }

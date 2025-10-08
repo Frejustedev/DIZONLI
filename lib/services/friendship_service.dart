@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../models/friendship_model.dart';
 import '../models/user_model.dart';
 import 'firestore_service.dart';
@@ -194,21 +195,43 @@ class FriendshipService {
   /// Récupère la liste des amis d'un utilisateur avec leurs profils
   Future<List<UserModel>> getFriendsProfiles(String userId) async {
     try {
-      final user = await _userService.getUser(userId);
-      if (user == null || user.friends.isEmpty) {
-        return [];
-      }
+      debugPrint('🔍 Recherche des amis pour userId: $userId');
+      
+      // Récupère tous les friendships acceptés pour cet utilisateur
+      final snapshot = await _firestore
+          .collection(_collection)
+          .where('status', isEqualTo: 'accepted')
+          .get();
 
-      final friendsProfiles = <UserModel>[];
-      for (final friendId in user.friends) {
-        final friend = await _userService.getUser(friendId);
-        if (friend != null) {
-          friendsProfiles.add(friend);
+      debugPrint('📋 Friendships trouvés: ${snapshot.docs.length}');
+
+      // Extrait les IDs des amis
+      final friendIds = <String>[];
+      for (final doc in snapshot.docs) {
+        final friendship = FriendshipModel.fromMap(doc.data(), doc.id);
+        if (friendship.userId1 == userId) {
+          friendIds.add(friendship.userId2);
+        } else if (friendship.userId2 == userId) {
+          friendIds.add(friendship.userId1);
         }
       }
 
+      debugPrint('👥 IDs d\'amis trouvés: ${friendIds.length} - $friendIds');
+
+      // Récupère les profils des amis
+      final friendsProfiles = <UserModel>[];
+      for (final friendId in friendIds) {
+        final friend = await _userService.getUser(friendId);
+        if (friend != null) {
+          friendsProfiles.add(friend);
+          debugPrint('✅ Profil chargé: ${friend.name}');
+        }
+      }
+
+      debugPrint('✅ Total amis chargés: ${friendsProfiles.length}');
       return friendsProfiles;
     } catch (e) {
+      debugPrint('❌ Erreur lors de la récupération des amis: $e');
       throw Exception('Erreur lors de la récupération des amis: $e');
     }
   }

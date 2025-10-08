@@ -8,6 +8,7 @@ import '../../providers/user_provider.dart';
 import '../../models/friendship_model.dart';
 import '../../models/user_model.dart';
 import 'add_friend_screen.dart';
+import '../profile/user_profile_screen.dart';
 
 class FriendsScreen extends StatefulWidget {
   const FriendsScreen({Key? key}) : super(key: key);
@@ -241,9 +242,14 @@ class _FriendsScreenState extends State<FriendsScreen>
             if (value == 'remove') {
               _confirmRemoveFriend(friend);
             } else if (value == 'profile') {
-              // TODO: Navigate to friend profile
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Profil ami - À venir')),
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => UserProfileScreen(
+                    userId: friend.uid,
+                    userProfile: friend,
+                  ),
+                ),
               );
             }
           },

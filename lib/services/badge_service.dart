@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import '../models/badge_model.dart';
 import 'firestore_service.dart';
 import 'user_service.dart';
@@ -48,17 +49,37 @@ class BadgeService {
   /// Récupère les badges d'un utilisateur (une seule fois)
   Future<List<BadgeModel>> getUserBadges(String userId) async {
     try {
+      debugPrint('🔍 [getUserBadges] Chargement des badges pour $userId...');
       final user = await _userService.getUser(userId);
-      if (user == null || user.badges.isEmpty) return <BadgeModel>[];
+      
+      if (user == null) {
+        debugPrint('❌ Utilisateur null !');
+        return <BadgeModel>[];
+      }
+      
+      debugPrint('📋 Badges IDs dans UserModel: ${user.badges}');
+      
+      if (user.badges.isEmpty) {
+        debugPrint('⚠️ user.badges est vide dans le UserModel');
+        return <BadgeModel>[];
+      }
       
       // Récupère tous les badges de l'utilisateur
       final badges = <BadgeModel>[];
       for (final badgeId in user.badges) {
+        debugPrint('   → Chargement du badge: $badgeId');
         final badge = await getBadge(badgeId);
-        if (badge != null) badges.add(badge);
+        if (badge != null) {
+          badges.add(badge);
+          debugPrint('   ✅ Badge trouvé: ${badge.name}');
+        } else {
+          debugPrint('   ❌ Badge non trouvé dans Firestore: $badgeId');
+        }
       }
+      debugPrint('📊 Total badges chargés: ${badges.length}');
       return badges;
     } catch (e) {
+      debugPrint('❌ Erreur getUserBadges: $e');
       throw Exception('Erreur lors de la récupération des badges utilisateur: $e');
     }
   }
@@ -82,10 +103,19 @@ class BadgeService {
   Future<List<BadgeModel>> checkAndUnlockBadges(String userId) async {
     try {
       // Récupère l'utilisateur
+      debugPrint('🔍 [Badge Service] Récupération des données utilisateur...');
       final userSnapshot = await _firestoreService.getDocument('users', userId);
-      if (!userSnapshot.exists) return [];
+      if (!userSnapshot.exists) {
+        debugPrint('❌ Utilisateur non trouvé dans Firestore');
+        return [];
+      }
       
       final userData = userSnapshot.data() as Map<String, dynamic>;
+      debugPrint('📊 Données utilisateur:');
+      debugPrint('   totalSteps: ${userData['totalSteps']}');
+      debugPrint('   level: ${userData['level']}');
+      debugPrint('   badges actuels: ${userData['badges']}');
+      
       final userBadges = List<String>.from(userData['badges'] ?? []);
       
       // Récupère tous les badges disponibles
@@ -119,9 +149,15 @@ class BadgeService {
     final level = userData['level'] ?? 1;
     final friendsCount = (userData['friends'] as List?)?.length ?? 0;
     
+    // 🔍 DEBUG : Afficher les données utilisateur
+    debugPrint('🔍 Vérification badge "${badge.name}" (${badge.condition})');
+    debugPrint('   totalSteps: $totalSteps, level: $level, friends: $friendsCount');
+    
     switch (badge.condition) {
       case 'first_steps':
-        return totalSteps >= 1;
+        final result = totalSteps >= 1;
+        debugPrint('   → Résultat: $result (besoin: 1 pas)');
+        return result;
       
       case 'steps_1000':
         return totalSteps >= 1000;

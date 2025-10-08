@@ -4,6 +4,7 @@ class UserModel {
   final String id;
   final String email;
   final String name;
+  final String? pseudo; // Pseudonyme/username
   final String? photoUrl;
   final int age;
   final String gender;
@@ -12,20 +13,30 @@ class UserModel {
   final DateTime createdAt;
   final String userLevel; // Bronze, Silver, Gold, Champion
   final List<String> groupIds;
+  final List<String> badges; // IDs des badges débloqués
   final int totalSteps;
   final int totalDistance; // in meters
   final int totalCalories;
+  final double? height; // height in cm
+  final double? weight; // weight in kg
 
   // Convenience getters for compatibility
   String get uid => id;
   List<String> get friends => const [];
   List<String> get groups => groupIds;
-  List<String> get badges => const [];
+  
+  // Calculer l'IMC
+  double? get bmi {
+    if (height == null || weight == null || height! <= 0) return null;
+    final heightInMeters = height! / 100;
+    return weight! / (heightInMeters * heightInMeters);
+  }
 
   UserModel({
     required this.id,
     required this.email,
     required this.name,
+    this.pseudo,
     this.photoUrl,
     required this.age,
     required this.gender,
@@ -34,9 +45,12 @@ class UserModel {
     required this.createdAt,
     this.userLevel = 'Bronze',
     this.groupIds = const [],
+    this.badges = const [],
     this.totalSteps = 0,
     this.totalDistance = 0,
     this.totalCalories = 0,
+    this.height,
+    this.weight,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -52,6 +66,7 @@ class UserModel {
       id: json['id'] ?? '',
       email: json['email'] ?? '',
       name: json['name'] ?? '',
+      pseudo: json['pseudo'],
       photoUrl: json['photoUrl'],
       age: (json['age'] ?? 0).toInt(),
       gender: json['gender'] ?? '',
@@ -60,9 +75,12 @@ class UserModel {
       createdAt: _parseDate(json['createdAt']),
       userLevel: json['userLevel'] ?? 'Bronze',
       groupIds: List<String>.from(json['groupIds'] ?? []),
+      badges: List<String>.from(json['badges'] ?? []),
       totalSteps: (json['totalSteps'] ?? 0).toInt(),
       totalDistance: (json['totalDistance'] ?? 0).toInt(),
       totalCalories: (json['totalCalories'] ?? 0).toInt(),
+      height: json['height'] != null ? (json['height'] as num).toDouble() : null,
+      weight: json['weight'] != null ? (json['weight'] as num).toDouble() : null,
     );
   }
 
@@ -71,6 +89,7 @@ class UserModel {
       'id': id,
       'email': email,
       'name': name,
+      'pseudo': pseudo,
       'photoUrl': photoUrl,
       'age': age,
       'gender': gender,
@@ -79,9 +98,12 @@ class UserModel {
       'createdAt': createdAt.toIso8601String(),
       'userLevel': userLevel,
       'groupIds': groupIds,
+      'badges': badges,
       'totalSteps': totalSteps,
       'totalDistance': totalDistance,
       'totalCalories': totalCalories,
+      'height': height,
+      'weight': weight,
     };
   }
 
@@ -89,6 +111,7 @@ class UserModel {
     String? id,
     String? email,
     String? name,
+    String? pseudo,
     String? photoUrl,
     int? age,
     String? gender,
@@ -97,14 +120,18 @@ class UserModel {
     DateTime? createdAt,
     String? userLevel,
     List<String>? groupIds,
+    List<String>? badges,
     int? totalSteps,
     int? totalDistance,
     int? totalCalories,
+    double? height,
+    double? weight,
   }) {
     return UserModel(
       id: id ?? this.id,
       email: email ?? this.email,
       name: name ?? this.name,
+      pseudo: pseudo ?? this.pseudo,
       photoUrl: photoUrl ?? this.photoUrl,
       age: age ?? this.age,
       gender: gender ?? this.gender,
@@ -113,9 +140,12 @@ class UserModel {
       createdAt: createdAt ?? this.createdAt,
       userLevel: userLevel ?? this.userLevel,
       groupIds: groupIds ?? this.groupIds,
+      badges: badges ?? this.badges,
       totalSteps: totalSteps ?? this.totalSteps,
       totalDistance: totalDistance ?? this.totalDistance,
       totalCalories: totalCalories ?? this.totalCalories,
+      height: height ?? this.height,
+      weight: weight ?? this.weight,
     );
   }
 }
